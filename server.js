@@ -122,7 +122,13 @@ io.on('connection', (socket) => {
     if (typeof cb === 'function') cb({ code });
   });
 
-  socket.on('entrarSala', ({ code, playerId, nome } = {}, cb) => {
+  socket.on('criarSalaSolo', (cb) => {
+    const code = gerarCodigo();
+    salas.set(code, R.novaSala(code, 'solo'));
+    if (typeof cb === 'function') cb({ code });
+  });
+
+  socket.on('entrarSala', async ({ code, playerId, nome } = {}, cb) => {
     code = (code || '').toUpperCase().trim();
     if (!/^[A-Z0-9]{3,6}$/.test(code)) {
       if (cb) cb({ erro: 'Código de loja inválido.' });
@@ -141,8 +147,17 @@ io.on('connection', (socket) => {
     socket.data.code = code;
     socket.data.playerId = playerId;
     socket.join(code);
-    if (cb) cb({ ok: true, code, souHost: sala.hostId === playerId });
+    if (cb) cb({ ok: true, code, souHost: sala.hostId === playerId, modo: sala.modo });
     enviarEstado(code);
+
+    // Modo sozinho: começa na hora, sem lobby.
+    if (sala.modo === 'solo' && sala.fase === 'lobby' && sala.jogadores.length >= 1) {
+      R.iniciarSolo(sala);
+      enviarEstado(code);
+      await abrirEngradadosIniciais(code);
+      return;
+    }
+
     // Reconexão no meio de um momento especial: reenvia o quadro atual.
     if (sala.fase === 'batalha' && sala.ultimaRevelacao) {
       socket.emit('revelacaoVendas', sala.ultimaRevelacao);

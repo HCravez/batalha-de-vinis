@@ -199,7 +199,13 @@
     if (!S) return;
     if (S.fase !== 'venda') { arranjoVenda = null; }
     switch (S.fase) {
-      case 'lobby': renderLobby(); break;
+      case 'lobby':
+        if (S.modo === 'solo') {
+          mostrarSecao('aviso');
+          secs.aviso.innerHTML = '<div class="lobby__cabeca"><span class="selo">só um instante…</span>' +
+            '<h2>Preparando sua loja</h2></div><div class="garimpo"><div class="garimpo__disco"></div></div>';
+        } else renderLobby();
+        break;
       case 'compra': aguardando = false; renderCompra(); break;
       case 'venda': renderVenda(); break;
       case 'batalha': mostrarSecao('batalha'); break;
@@ -445,18 +451,25 @@
         esperandoOutros('Venda confirmada! Esperando os outros lojistas montarem o balcão…', 'vendaConfirmada');
       return;
     }
+    var solo = S.modo === 'solo';
     var vagas = (eu.lojaMax || 5) - ((eu.loja && eu.loja.length) || 0);
+    var vagasTxt = 'restam ' + vagas + ' vaga' + (vagas === 1 ? '' : 's');
+    var explica = solo
+      ? 'Escolha o que <b>guardar</b> na loja (' + vagasTxt + ' — contam pro acervo). O resto é <b>vendido pelo valor real</b>: ' +
+        'lucro se você pechinchou, prejuízo se pagou caro. A avaliação está oculta — confie no preço.'
+      : 'Ordene do <b>pior</b> (esquerda) ao <b>melhor</b> (direita) — palpite, a avaliação está oculta. ' +
+        'Mande pro <b>balcão</b> o que vai vender e <b>guarde</b> os melhores (' + vagasTxt + ').';
     secs.venda.innerHTML =
       barraRodada('Hora de vender', eu) +
       lojaShelf(eu) +
-      '<div class="venda-explica">Ordene do <b>pior</b> (esquerda) ao <b>melhor</b> (direita) — palpite, a avaliação está oculta. ' +
-        'Mande pro <b>balcão</b> o que vai vender e <b>guarde</b> os melhores (restam ' + vagas + ' vaga' + (vagas === 1 ? '' : 's') + ').</div>' +
-      '<div class="secao-rotulo">No balcão · vão para a batalha</div>' +
+      '<div class="venda-explica">' + explica + '</div>' +
+      '<div class="secao-rotulo">' + (solo ? 'À venda · pelo valor real' : 'No balcão · vão para a batalha') + '</div>' +
       '<div id="venda-batalha" class="venda-trilha"></div>' +
       '<div class="secao-rotulo">Guardar na loja · acervo final</div>' +
       '<div id="venda-guardar" class="venda-trilha venda-trilha--guardar"></div>' +
-      '<div class="venda-acoes"><button id="btn-confirmar" class="btn btn--rosa btn--g">Confirmar venda</button>' +
-        '<p class="dica">Depois disso a batalha começa e as avaliações são reveladas.</p></div>' +
+      '<div class="venda-acoes"><button id="btn-confirmar" class="btn btn--rosa btn--g">' +
+        (solo ? 'Vender e guardar' : 'Confirmar venda') + '</button>' +
+        '<p class="dica">' + (solo ? 'As avaliações são reveladas agora.' : 'Depois disso a batalha começa e as avaliações são reveladas.') + '</p></div>' +
       rivaisVenda();
     pintarVenda();
     $('#btn-confirmar').addEventListener('click', function () {
@@ -467,18 +480,20 @@
   function pintarVenda() {
     var mapa = mapaComprados();
     var eu = S.voce || {};
+    var solo = S.modo === 'solo';
     var vagas = (eu.lojaMax || 5) - ((eu.loja && eu.loja.length) || 0);
     var bat = $('#venda-batalha');
     bat.innerHTML = arranjoVenda.batalha.map(function (uid, i) {
       var d = mapa[uid]; if (!d) return '';
-      return '<div class="venda-item" data-uid="' + esc(uid) + '">' +
-        '<div class="venda-item__pos">' + (i + 1) + 'º</div>' + sleeveFront(d, { pago: d.pago }) +
-        '<div class="venda-item__ferramentas">' +
-          '<button class="tbtn" data-acao="esq" title="pior"' + (i === 0 ? ' disabled' : '') + '>◀</button>' +
+      var pos = solo ? '' : '<div class="venda-item__pos">' + (i + 1) + 'º</div>';
+      var ferramentas = solo
+        ? '<button class="tbtn tbtn--guardar" data-acao="guardar"' + (vagas <= 0 ? ' disabled' : '') + '>↑ guardar</button>'
+        : '<button class="tbtn" data-acao="esq" title="pior"' + (i === 0 ? ' disabled' : '') + '>◀</button>' +
           '<button class="tbtn tbtn--guardar" data-acao="guardar"' + (vagas <= 0 ? ' disabled' : '') + '>↑ guardar</button>' +
-          '<button class="tbtn" data-acao="dir" title="melhor"' + (i === arranjoVenda.batalha.length - 1 ? ' disabled' : '') + '>▶</button>' +
-        '</div></div>';
-    }).join('') || '<p class="esperando">Tudo guardado — nada vai à batalha.</p>';
+          '<button class="tbtn" data-acao="dir" title="melhor"' + (i === arranjoVenda.batalha.length - 1 ? ' disabled' : '') + '>▶</button>';
+      return '<div class="venda-item" data-uid="' + esc(uid) + '">' + pos + sleeveFront(d, { pago: d.pago }) +
+        '<div class="venda-item__ferramentas">' + ferramentas + '</div></div>';
+    }).join('') || '<p class="esperando">' + (solo ? 'Tudo guardado — nada será vendido.' : 'Tudo guardado — nada vai à batalha.') + '</p>';
     var gua = $('#venda-guardar');
     gua.innerHTML = arranjoVenda.guardar.map(function (uid) {
       var d = mapa[uid]; if (!d) return '';
@@ -535,9 +550,12 @@
   // ════════════════════════════ BATALHA ══════════════════════════════════════
   function mostrarBatalha(p) {
     mostrarSecao('batalha');
+    var solo = p.modo === 'solo';
     var ehUltima = p.rodada >= p.totalRodadas;
-    var cabeca = '<div class="revelacao__cabeca"><span class="selo">a hora da verdade</span><h2>Batalha de Vendas</h2>' +
-      '<div class="revelacao__demanda">Rodada ' + p.rodada + '/' + p.totalRodadas + ' · a avaliação (★) é revelada agora</div></div>';
+    var cabeca = '<div class="revelacao__cabeca"><span class="selo">a hora da verdade</span><h2>' +
+      (solo ? 'Hora de Vender' : 'Batalha de Vendas') + '</h2>' +
+      '<div class="revelacao__demanda">Rodada ' + p.rodada + '/' + p.totalRodadas + ' · ' +
+      (solo ? 'seus discos vão pelo valor real e a avaliação (★) é revelada' : 'a avaliação (★) é revelada agora') + '</div></div>';
     var meu = (p.jogadores || []).filter(function (b) { return b.playerId === pid; });
     var outros = (p.jogadores || []).filter(function (b) { return b.playerId !== pid; });
     var blocos = meu.concat(outros).map(function (b) { return blocoBatalha(b, b.playerId === pid); }).join('');
@@ -594,6 +612,7 @@
 
   // ════════════════════════════ FIM ══════════════════════════════════════════
   function mostrarFim(p) {
+    if (p.modo === 'solo') return mostrarFimSolo(p);
     mostrarSecao('fim');
     var classif = p.classificacao || [];
     var campea = classif[0];
@@ -620,6 +639,39 @@
     secs.fim.innerHTML = cabeca + parada + reveal + controles;
     var btn = $('#btn-denovo');
     if (btn) btn.addEventListener('click', function () { btn.disabled = true; socket.emit('jogarNovamente'); });
+    crachaModo = null; arranjoVenda = null; selecionadoMbid = null;
+  }
+
+  // ── FIM do modo sozinho: high score (média dos 5 melhores guardados) ──────
+  function mostrarFimSolo(p) {
+    mostrarSecao('fim');
+    var c = (p.classificacao || [])[0] || { loja: [], media: 0, acervo: 0, dinheiro: 0 };
+    var score = Math.round((c.media || 0) * 10) / 10; // 0–10
+    var pts = Math.round((c.media || 0) * 10);          // 0–100
+
+    var rec = parseFloat(localStorage.getItem('bdv_recorde_solo') || '0') || 0;
+    var novoRecorde = score > rec;
+    if (novoRecorde) localStorage.setItem('bdv_recorde_solo', String(score));
+    var recorde = Math.max(rec, score);
+
+    var discos = (c.loja || []).map(function (v) { return sleeveFront(v, { mostrarAvaliacao: true, semPreco: true }); }).join('');
+
+    var cabeca = '<div class="fim__cabeca"><span class="selo">fim de jogo</span><h2>Seu acervo</h2></div>';
+    var placar =
+      '<div class="solo-score">' +
+        '<div class="solo-score__big"><span class="solo-score__num">' + nota(score) + '</span><span class="solo-score__den">/ 10</span></div>' +
+        '<div class="solo-score__sub">média dos seus ' + ((c.loja || []).length) + ' melhores · <b>' + pts + ' pts</b></div>' +
+        (novoRecorde
+          ? '<div class="solo-score__rec novo">🎉 Novo recorde!</div>'
+          : '<div class="solo-score__rec">recorde: ' + nota(recorde) + ' / 10</div>') +
+        '<div class="solo-score__grana">caixa final: ' + money(c.dinheiro) + '</div>' +
+      '</div>';
+    var reveal = '<div class="reveal-final"><h3>Os ' + ((c.loja || []).length) + ' da sua loja</h3>' +
+      '<div class="reveal-final__discos">' + (discos || '<span class="esperando">loja vazia</span>') + '</div></div>';
+    var controles = '<div class="fim__controles"><a class="btn btn--rosa btn--g" href="/">Jogar de novo</a>' +
+      '<p class="dica">Tente bater seu recorde.</p></div>';
+
+    secs.fim.innerHTML = cabeca + placar + reveal + controles;
     crachaModo = null; arranjoVenda = null; selecionadoMbid = null;
   }
 })();

@@ -9,12 +9,14 @@ crítica**.
 Feito com **Node.js + Express + Socket.IO**. Sem banco de dados: as salas vivem
 na memória do servidor, e os engradados de discos ficam em cache.
 
-> **Sobre as notas:** os álbuns e as capas são reais. Já as notas (crítica e
-> usuários) **não existem em nenhuma API gratuita** — então são derivadas de
-> forma determinística do identificador (MBID) de cada álbum: ficam estáveis e
-> jogáveis, mas não são notas reais de Metacritic/RYM. O preço segue a nota dos
-> usuários (♪) com ±25% de variação; a nota da crítica (★) fica oculta até a
-> batalha.
+> **Sobre a avaliação:** os álbuns e as capas são reais. Os "20 mais conhecidos"
+> de cada gênero+ano e a **avaliação (★)** de cada disco vêm de **dados reais de
+> audiência do ListenBrainz** (quantos ouvintes distintos e quantas execuções).
+> Nota da crítica "de verdade" (Metacritic/RYM) **não existe em API gratuita** e
+> a avaliação da comunidade do MusicBrainz é rara/lenta demais — por isso a
+> popularidade real é a melhor base possível sem chave de API. A avaliação fica
+> **oculta na compra** (só o preço, = ★ × 10 ± 25%, dá pista) e é revelada na
+> venda.
 
 ---
 
@@ -43,12 +45,21 @@ Abra **http://localhost:3000** no navegador.
 
 ---
 
-## 🎮 Como jogar com os amigos
+## 🎮 Como jogar
 
-1. Na vitrine, clique em **“Abrir minha loja”**. Você cai numa URL com o código
-   da sala, tipo `http://localhost:3000/K7QP`.
-2. **Compartilhe esse link** (botão *Copiar link* no topo da sala). Cada pessoa
-   abre em outro navegador, aba anônima ou celular.
+### Sozinho 🎧
+Na vitrine, clique em **“Jogar sozinho”**. O jogo começa na hora (sem lobby). O
+objetivo é montar o melhor **acervo de 5 discos**: ao fim das 5 rodadas, a
+**média das avaliações dos seus 5 melhores guardados** vira um **high score**
+(o recorde fica salvo no navegador). Aqui não há batalha — o que você não guarda
+é **vendido pelo valor real** do disco, com lucro ou prejuízo.
+
+### Com os amigos 👥
+1. Na vitrine, clique em **“Abrir loja multiplayer”**. Você cai numa URL com o
+   código da sala, tipo `http://localhost:3000/K7QP`.
+2. **Compartilhe esse link** (botão *Copiar link* no topo da sala) — a entrada é
+   **só pela URL**, não há mais campo de código. Cada pessoa abre em outro
+   navegador, aba anônima ou celular.
    - Na mesma máquina: use abas/janelas diferentes (cada aba é um lojista).
    - Em outros aparelhos da mesma rede: troque `localhost` pelo IP da sua
      máquina, ex.: `http://192.168.0.10:3000/K7QP`.
@@ -64,29 +75,32 @@ Abra **http://localhost:3000** no navegador.
   as rodadas). Cada rodada tem duas fases: **compra** e **venda**.
 
 **Compra** 🛒
-- Sorteia-se um **ano** e um **gênero**; aparece um **engradado** com 20 álbuns
-  reais daquele recorte.
-- O **preço** segue a nota dos usuários (♪ × 10), mas varia **±25%** — sempre
-  aparecem boas barganhas.
-- Você compra **1 disco por engradado**. Pode **trocar o ano** uma vez e **trocar
-  o gênero** uma vez, e puxar **novos engradados** à vontade.
+- Sorteia-se um **ano** e um **gênero** (cada gênero só nas décadas em que faz
+  sentido); aparecem os **20 mais conhecidos** daquele recorte.
+- Cada disco tem uma **avaliação (★) OCULTA**. O **preço** é avaliação × 10 com
+  **±25%** — então o preço é só uma pista ruidosa: aparecem gemas baratas.
+- Escolha uma capa e clique **COMPRAR** — ele leva o disco e já abre o próximo
+  engradado. Você tem **3 trocas de ano** e **3 trocas de gênero** por rodada.
 - Encerre as compras quando quiser (alvo: **4+ discos**, teto **10**).
 
-**Venda** 🏷️ e **Batalha** ⚔️
-- Separe o que vai à **batalha** e o que vai **guardar** na loja, e ordene os de
-  batalha do **pior → melhor** (é seu palpite; a crítica está oculta).
-- A batalha é **rei-do-morro** pela **nota da crítica (★)**, que só agora é
-  revelada: o disco de maior crítica vence e segue na disputa.
-- Cada **vitória** aumenta o valor de revenda; quem **não vence nenhuma** dá
-  **prejuízo** (vende pela metade).
+**Venda** 🏷️
+- Separe o que vai **guardar** na loja e o que vai **vender**. A avaliação (★)
+  é revelada agora.
+- **Multiplayer — batalha** ⚔️: você ordena os discos do **pior → melhor**
+  (palpite) e a venda é **rei-do-morro** pela avaliação; cada **vitória** aumenta
+  a revenda, quem não vence dá **prejuízo**.
+- **Sozinho — mercado** 🎧: cada disco é vendido pelo **valor real** (avaliação ×
+  10). Pechinchou? **lucro**. Pagou caro? **prejuízo**.
 
 **Acervo e fim** 🏆
 - Você pode **guardar até 5 discos** na loja, acumulando entre as rodadas.
-- Depois de **5 rodadas**, vence a loja com o **melhor acervo** — a maior soma de
-  notas da crítica entre os discos guardados. Empate? Desempata pelo dinheiro.
+- **Multiplayer:** vence a loja com o **melhor acervo** (maior soma das avaliações
+  guardadas; desempate pelo dinheiro).
+- **Sozinho:** a **média dos 5 melhores** guardados é o seu **high score**.
 
-Os **álbuns e capas são reais** (MusicBrainz / Cover Art Archive). As **notas**
-são geradas de forma determinística (veja a nota no topo deste README).
+Os **álbuns e capas são reais** (MusicBrainz / Cover Art Archive). A **avaliação**
+vem de **dados reais de audiência do ListenBrainz** — quanto mais conhecido e
+ouvido o disco, maior a nota (veja a explicação no topo do README).
 
 ---
 

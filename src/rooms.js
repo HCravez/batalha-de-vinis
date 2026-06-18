@@ -16,9 +16,10 @@
 const G = require('./gameData');
 const MB = require('./musicbrainz');
 
-function novaSala(code) {
+function novaSala(code, modo) {
   return {
     code,
+    modo: modo === 'solo' ? 'solo' : 'multi',
     fase: 'lobby', // 'lobby' | 'compra' | 'venda' | 'batalha' | 'fim'
     hostId: null,
     rodada: 0,
@@ -113,6 +114,22 @@ function iniciar(sala) {
     j.dinheiro = G.DINHEIRO_INICIAL;
     j.loja = [];
   }
+  sala.rodada = 1;
+  sala.ultimaRevelacao = null;
+  sala.ultimoFim = null;
+  comecarCompra(sala);
+  return { ok: true };
+}
+
+// Modo sozinho: começa na hora, com 1 lojista, sem lobby nem espera.
+function iniciarSolo(sala) {
+  const j = sala.jogadores[0];
+  if (!j) return { erro: 'Sem lojista na loja.' };
+  if (!j.nome) j.nome = 'Você';
+  j.pronto = true;
+  sala._uid = 0;
+  j.dinheiro = G.DINHEIRO_INICIAL;
+  j.loja = [];
   sala.rodada = 1;
   sala.ultimaRevelacao = null;
   sala.ultimoFim = null;
@@ -335,7 +352,14 @@ function precoRevenda(disco) {
   return Math.max(1, Math.round(disco.valor * (0.5 + 0.6 * (disco.vitorias || 0))));
 }
 
+// Modo sozinho: o disco vale o seu "valor real" = avaliação × 10. Quem pechinchou
+// (pagou abaixo) tem lucro; quem pagou caro tem prejuízo.
+function precoVendaSolo(disco) {
+  return Math.max(1, Math.round(disco.avaliacao * 10));
+}
+
 function resolverVendas(sala) {
+  const solo = sala.modo === 'solo';
   const porJogador = [];
 
   for (const j of sala.jogadores) {
@@ -344,20 +368,20 @@ function resolverVendas(sala) {
     const ordem = arr.batalha.map((u) => mapa.get(u)).filter(Boolean);
     const guardados = arr.guardar.map((u) => mapa.get(u)).filter(Boolean);
 
-    const campeaoFinal = resolverBatalhaDeUm(ordem);
+    const campeaoFinal = solo ? null : resolverBatalhaDeUm(ordem);
 
     let ganho = 0;
     let investido = 0;
     const vendidos = ordem.map((d) => {
-      const preco = precoRevenda(d);
+      const preco = solo ? precoVendaSolo(d) : precoRevenda(d);
       ganho += preco;
       investido += d.pago;
       return {
         uid: d.uid, mbid: d.mbid, album: d.album, artista: d.artista,
         genero: d.genero, ano: d.ano, capaUrl: d.capaUrl,
         avaliacao: d.avaliacao, valor: d.valor, pago: d.pago,
-        vitorias: d.vitorias || 0, preco, lucro: preco - d.pago,
-        campeao: d.uid === campeaoFinal,
+        vitorias: solo ? undefined : (d.vitorias || 0), preco, lucro: preco - d.pago,
+        campeao: !solo && d.uid === campeaoFinal,
       };
     });
     j.dinheiro += ganho;
@@ -393,7 +417,7 @@ function resolverVendas(sala) {
   }
 
   sala.fase = 'batalha';
-  const payload = { rodada: sala.rodada, totalRodadas: sala.totalRodadas, jogadores: porJogador };
+  const payload = { modo: sala.modo, rodada: sala.rodada, totalRodadas: sala.totalRodadas, jogadores: porJogador };
   sala.ultimaRevelacao = payload;
   return payload;
 }
@@ -432,7 +456,7 @@ function finalizar(sala) {
     }))
     .sort((a, b) => b.acervo - a.acervo || b.dinheiro - a.dinheiro);
 
-  const payload = { classificacao };
+  const payload = { modo: sala.modo, classificacao };
   sala.ultimoFim = payload;
   return payload;
 }
@@ -523,6 +547,7 @@ function visao(sala, playerId) {
 
   return {
     code: sala.code,
+    modo: sala.modo,
     fase: sala.fase,
     rodada: sala.rodada,
     totalRodadas: sala.totalRodadas,
@@ -539,6 +564,7 @@ module.exports = {
   ficarPronto,
   removerJogador,
   iniciar,
+  iniciarSolo,
   comecarCompra,
   prepararSorteio,
   executarSorteio,

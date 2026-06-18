@@ -30,25 +30,30 @@
           </p>
 
           <div class="vitrine__acoes">
-            <button id="abrir" class="btn btn--rosa btn--g btn--bloco">Abrir minha loja</button>
+            <button id="solo" class="btn btn--rosa btn--g btn--bloco">Jogar sozinho</button>
 
-            <div class="ou-risca">ou entre numa que já existe</div>
+            <div class="ou-risca">ou chame a galera</div>
 
-            <form id="form-entrar" class="entrar-loja" autocomplete="off">
-              <input id="codigo" name="codigo" maxlength="6" inputmode="latin"
-                     placeholder="CÓDIGO" aria-label="Código da loja" />
-              <button type="submit" class="btn btn--vinil">Entrar</button>
-            </form>
+            <button id="abrir" class="btn btn--vinil btn--g btn--bloco">Abrir loja multiplayer</button>
+            <p class="acoes-dica">No multiplayer, é só compartilhar o link da loja — a entrada é pela URL.</p>
           </div>
         </div>
 
         <div class="palco-disco">
-          <div class="disco" role="img" aria-label="Disco de vinil girando">
-            <div class="disco__label">
-              <span class="disco__label-top">lado A</span>
-              <span class="disco__label-title">Batalha<br />de Vinis</span>
+          <div class="vitrola">
+            <div class="disco" role="img" aria-label="Disco de vinil girando na vitrola">
+              <div class="disco__label">
+                <span class="disco__label-top">lado A</span>
+                <span class="disco__label-title">Batalha<br />de Vinis</span>
+              </div>
+              <div class="disco__hole"></div>
             </div>
-            <div class="disco__hole"></div>
+            <div class="vitrola__deck" aria-hidden="true">
+              <span class="vitrola__braco"></span>
+              <span class="vitrola__botao"></span>
+              <span class="vitrola__botao vitrola__botao--2"></span>
+              <span class="vitrola__pitch"></span>
+            </div>
           </div>
         </div>
       </section>
