@@ -267,6 +267,6 @@ io.on('connection', (socket) => {
 
 // Inicialização usando a variável de ambiente (PORT padrão 3000).
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-  console.log(`\n  🎙️  Batalha de Vinis no ar  →  http://localhost:${PORT}\n`);
+server.listen(PORT, '0.0.0.0', () => {
+    console.log(`Servidor a rodar na porta ${PORT}`);
 });
