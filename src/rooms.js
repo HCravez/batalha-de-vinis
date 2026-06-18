@@ -460,6 +460,7 @@ function resolverVendas(sala) {
       };
     });
     j.dinheiro += ganho;
+    j.dinheiro += G.BONUS_RODADA; // crédito de fim de rodada
 
     const vagas = G.LOJA_MAX - j.loja.length;
     const guardadosOk = guardados.slice(0, Math.max(0, vagas));
@@ -483,6 +484,7 @@ function resolverVendas(sala) {
       ganho,
       investido,
       lucro: ganho - investido,
+      bonusRodada: G.BONUS_RODADA,
       dinheiro: j.dinheiro,
       acervo: pontosAcervo(j),
       lojaTamanho: j.loja.length,

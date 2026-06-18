@@ -920,3 +920,5 @@ h1, h2, h3 { font-family: var(--fonte-titulo); font-weight: 400; letter-spacing:
 .acervo-remover:hover { background: var(--pink-d); transform: scale(1.1); }
 .acervo-remover:active { transform: scale(.94); }
 .acervo-remover:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+
+.credito-rodada { color: var(--gold); font-family: var(--fonte-titulo); }

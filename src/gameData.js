@@ -39,6 +39,7 @@ const GENEROS = [
 
 const ALBUNS_POR_ENGRADADO = 20;
 const DINHEIRO_INICIAL = 300;
+const BONUS_RODADA = 120; // crédito dado a cada lojista no fim de toda rodada
 const TOTAL_RODADAS = 3;
 const LOJA_MAX = 5;       // teto de álbuns guardados (acervo final)
 const COMPRA_MAX = 10;    // teto de compras por rodada
@@ -160,6 +161,7 @@ module.exports = {
   GENEROS,
   ALBUNS_POR_ENGRADADO,
   DINHEIRO_INICIAL,
+  BONUS_RODADA,
   TOTAL_RODADAS,
   LOJA_MAX,
   COMPRA_MAX,

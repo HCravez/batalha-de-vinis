@@ -627,6 +627,7 @@
       '<div class="batalha-bloco__topo"><h3>' + esc(b.nome || 'Lojista') + (ehMeu ? ' <span class="voce-tag">você</span>' : '') + '</h3>' +
         '<div class="batalha-bloco__grana">' + money(b.dinheiro) + ' <small>no caixa</small></div></div>' +
       '<div class="batalha-resumo">Investiu ' + money(b.investido) + ' · recebeu ' + money(b.ganho) +
+        (b.bonusRodada ? ' · crédito da rodada <b class="credito-rodada">+' + money(b.bonusRodada) + '</b>' : '') +
         ' · <span class="venda__lucro ' + liqCls + '">resultado ' + liqTxt + '</span></div>' +
       '<div class="balcao">' + balcao + '</div>' +
       (guardados ? '<div class="batalha-guardados"><span class="secao-rotulo">Guardados na loja</span><div class="guardados-fila">' + guardados + '</div></div>' : '') +
