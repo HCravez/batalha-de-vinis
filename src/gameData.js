@@ -1,115 +1,49 @@
 // ───────────────────────────────────────────────────────────────────────────
-//  BATALHA DE VINIS — dados do jogo
-//  Catálogo de discos (fictícios, de propósito) e cartas de demanda.
+//  BATALHA DE VINIS — configuração de dados e modelo de notas/preço
+//
+//  Os álbuns são REAIS (vêm do MusicBrainz, em src/musicbrainz.js) e as capas
+//  também (Cover Art Archive). As NOTAS, porém, não existem em nenhuma API
+//  gratuita — Metacritic / AlbumOfTheYear / RateYourMusic não têm API livre.
+//  Por isso a nota dos usuários e a nota da crítica são derivadas de forma
+//  DETERMINÍSTICA do MBID do álbum: assim ficam estáveis (o mesmo disco vale
+//  sempre o mesmo) e jogáveis, mas não são notas reais de verdade.
+//
+//  Dois valores por álbum, como na ideia do jogo:
+//    • nota dos USUÁRIOS  → visível na compra, define o PREÇO (nota×10 ±25%).
+//    • nota da CRÍTICA    → OCULTA até a batalha; decide quem vence e o acervo.
+//  A crítica é correlacionada à dos usuários, mas com desvio — por isso o preço
+//  é só uma pista ruidosa da qualidade real (aparecem gemas baratas e furadas).
 // ───────────────────────────────────────────────────────────────────────────
 
-const RARIDADES = {
-  comum:    { rotulo: 'Comum',    mult: 1, cor: '#b8a89a' },
-  raro:     { rotulo: 'Raro',     mult: 2, cor: '#4f8cff' },
-  lendario: { rotulo: 'Lendário', mult: 4, cor: '#ffc83d' },
-};
-
-// Cada disco: álbum, artista, gênero, raridade, valor de tabela, ano.
-const CATALOGO = [
-  // ── Rock ──────────────────────────────────────────────────────────────
-  { album: 'Trovão de Veludo',     artista: 'Os Cometas de Aço',    genero: 'Rock',        raridade: 'comum',    valor: 32,  ano: 1974 },
-  { album: 'Asfalto Quente',       artista: 'Lobo de Neon',         genero: 'Rock',        raridade: 'comum',    valor: 28,  ano: 1981 },
-  { album: 'Distorção Azul',       artista: 'As Hienas Elétricas',  genero: 'Rock',        raridade: 'comum',    valor: 38,  ano: 1977 },
-  { album: 'Cavalo de Ferro',      artista: 'Caravana Selvagem',    genero: 'Rock',        raridade: 'raro',     valor: 58,  ano: 1972 },
-  { album: 'Eclipse na Garagem',   artista: 'Pólvora & Mel',        genero: 'Rock',        raridade: 'raro',     valor: 66,  ano: 1969 },
-  { album: 'Rei do Feedback',      artista: 'Vulcão Particular',    genero: 'Rock',        raridade: 'lendario', valor: 110, ano: 1971 },
-
-  // ── Jazz ──────────────────────────────────────────────────────────────
-  { album: 'Fumaça de Meia-Noite', artista: 'Trio Penumbra',        genero: 'Jazz',        raridade: 'comum',    valor: 30,  ano: 1959 },
-  { album: 'Café com Sétima',      artista: 'Otto Marès',           genero: 'Jazz',        raridade: 'comum',    valor: 36,  ano: 1963 },
-  { album: 'Chuva no Saxofone',    artista: 'Quinteto Marfim',      genero: 'Jazz',        raridade: 'comum',    valor: 42,  ano: 1958 },
-  { album: 'Boêmia em Lá Menor',   artista: 'Dália Sextante',       genero: 'Jazz',        raridade: 'raro',     valor: 62,  ano: 1956 },
-  { album: 'Sussurro de Baixo',    artista: 'Clube Veludo',         genero: 'Jazz',        raridade: 'raro',     valor: 74,  ano: 1961 },
-  { album: 'O Último Improviso',   artista: 'Mestre Cordovil',      genero: 'Jazz',        raridade: 'lendario', valor: 125, ano: 1954 },
-
-  // ── Soul ──────────────────────────────────────────────────────────────
-  { album: 'Coração de Cobre',     artista: 'As Pérolas do Beco',   genero: 'Soul',        raridade: 'comum',    valor: 34,  ano: 1968 },
-  { album: 'Suor & Açúcar',        artista: 'Banda Brasa Viva',     genero: 'Soul',        raridade: 'comum',    valor: 29,  ano: 1972 },
-  { album: 'Domingo de Veludo',    artista: 'Íris Calhau',          genero: 'Soul',        raridade: 'comum',    valor: 40,  ano: 1970 },
-  { album: 'Beijo de Cetim',       artista: 'Os Embaixadores',      genero: 'Soul',        raridade: 'raro',     valor: 60,  ano: 1967 },
-  { album: 'Gospel da Madrugada',  artista: 'Coro Aurora',          genero: 'Soul',        raridade: 'raro',     valor: 70,  ano: 1965 },
-  { album: 'A Voz do Bairro',      artista: 'Lurdes & Os Apóstolos',genero: 'Soul',        raridade: 'lendario', valor: 105, ano: 1969 },
-
-  // ── MPB ───────────────────────────────────────────────────────────────
-  { album: 'Maré de Abril',        artista: 'Caju Sereno',          genero: 'MPB',         raridade: 'comum',    valor: 33,  ano: 1979 },
-  { album: 'Folha Seca',           artista: 'Trio Sertão Azul',     genero: 'MPB',         raridade: 'comum',    valor: 27,  ano: 1975 },
-  { album: 'Beira de Rio',         artista: 'Anita Cravo',          genero: 'MPB',         raridade: 'comum',    valor: 39,  ano: 1982 },
-  { album: 'Sol de Ladeira',       artista: 'Tonho Maré',           genero: 'MPB',         raridade: 'raro',     valor: 57,  ano: 1973 },
-  { album: 'Recado da Lua',        artista: 'Cláudia Caramujo',     genero: 'MPB',         raridade: 'raro',     valor: 69,  ano: 1977 },
-  { album: 'Saudade Mecânica',     artista: 'Wilson Tamarindo',     genero: 'MPB',         raridade: 'lendario', valor: 100, ano: 1972 },
-
-  // ── Eletrônico ────────────────────────────────────────────────────────
-  { album: 'Néon Líquido',         artista: 'Circuito Fantasma',    genero: 'Eletrônico',  raridade: 'comum',    valor: 35,  ano: 1998 },
-  { album: 'Pulso 808',            artista: 'Garotos do Subsolo',   genero: 'Eletrônico',  raridade: 'comum',    valor: 31,  ano: 2001 },
-  { album: 'Satélite Caído',       artista: 'Módulo Lunar',         genero: 'Eletrônico',  raridade: 'comum',    valor: 44,  ano: 1995 },
-  { album: 'Cidade Sintética',     artista: 'Vetor & Vértice',      genero: 'Eletrônico',  raridade: 'raro',     valor: 64,  ano: 1999 },
-  { album: 'Reverb Infinito',      artista: 'Estado Sólido',        genero: 'Eletrônico',  raridade: 'raro',     valor: 78,  ano: 1993 },
-  { album: 'Aurora Binária',       artista: 'Coração de Silício',   genero: 'Eletrônico',  raridade: 'lendario', valor: 120, ano: 1990 },
-
-  // ── Punk ──────────────────────────────────────────────────────────────
-  { album: 'Cuspe & Confete',      artista: 'Os Encrenca',          genero: 'Punk',        raridade: 'comum',    valor: 26,  ano: 1979 },
-  { album: 'Beco sem Saída',       artista: 'Vira-Lata Geral',      genero: 'Punk',        raridade: 'comum',    valor: 24,  ano: 1982 },
-  { album: 'Alarme Falso',         artista: 'As Seringas',          genero: 'Punk',        raridade: 'comum',    valor: 37,  ano: 1980 },
-  { album: 'Última Garagem',       artista: 'Motim 77',             genero: 'Punk',        raridade: 'raro',     valor: 55,  ano: 1977 },
-  { album: 'Pogo na Praça',        artista: 'Banda Estilhaço',      genero: 'Punk',        raridade: 'raro',     valor: 63,  ano: 1983 },
-  { album: 'Manifesto Rasgado',    artista: 'Os Inomináveis',       genero: 'Punk',        raridade: 'lendario', valor: 95,  ano: 1978 },
-
-  // ── Pop ───────────────────────────────────────────────────────────────
-  { album: 'Brilho de Plástico',   artista: 'Lia Confete',          genero: 'Pop',         raridade: 'comum',    valor: 30,  ano: 1986 },
-  { album: 'Coração Pixel',        artista: 'Duo Bombom',           genero: 'Pop',         raridade: 'comum',    valor: 28,  ano: 1992 },
-  { album: 'Verão Sintético',      artista: 'As Estrelinhas',       genero: 'Pop',         raridade: 'comum',    valor: 41,  ano: 1988 },
-  { album: 'Dança da Fita',        artista: 'Rômulo Glitter',       genero: 'Pop',         raridade: 'raro',     valor: 59,  ano: 1985 },
-  { album: 'Refrão Grudento',      artista: 'Banda Vitrine',        genero: 'Pop',         raridade: 'raro',     valor: 67,  ano: 1990 },
-  { album: 'Ídolo de Vitrine',     artista: 'Sancho Vega',          genero: 'Pop',         raridade: 'lendario', valor: 102, ano: 1987 },
-
-  // ── Hip-Hop ───────────────────────────────────────────────────────────
-  { album: 'Concreto & Rima',      artista: 'Coletivo Quebrada',    genero: 'Hip-Hop',     raridade: 'comum',    valor: 33,  ano: 1994 },
-  { album: 'Batida do Viaduto',    artista: 'MC Zóio',              genero: 'Hip-Hop',     raridade: 'comum',    valor: 29,  ano: 1997 },
-  { album: 'Caderno de Versos',    artista: 'Sampa Profundo',       genero: 'Hip-Hop',     raridade: 'comum',    valor: 43,  ano: 1999 },
-  { album: 'Ouro de Tampinha',     artista: 'Crew Calçada',         genero: 'Hip-Hop',     raridade: 'raro',     valor: 61,  ano: 1996 },
-  { album: 'Sermão de Esquina',    artista: 'DJ Catraca',           genero: 'Hip-Hop',     raridade: 'raro',     valor: 72,  ano: 1993 },
-  { album: 'Lenda do Boombox',     artista: 'Velho Griô',           genero: 'Hip-Hop',     raridade: 'lendario', valor: 115, ano: 1991 },
+// Gêneros sorteáveis: tag do MusicBrainz → rótulo exibido.
+const GENEROS = [
+  { tag: 'rock',        label: 'Rock' },
+  { tag: 'pop',         label: 'Pop' },
+  { tag: 'hip hop',     label: 'Hip-Hop' },
+  { tag: 'jazz',        label: 'Jazz' },
+  { tag: 'soul',        label: 'Soul' },
+  { tag: 'funk',        label: 'Funk' },
+  { tag: 'electronic',  label: 'Eletrônico' },
+  { tag: 'punk',        label: 'Punk' },
+  { tag: 'heavy metal', label: 'Metal' },
+  { tag: 'folk',        label: 'Folk' },
+  { tag: 'reggae',      label: 'Reggae' },
+  { tag: 'blues',       label: 'Blues' },
+  { tag: 'country',     label: 'Country' },
+  { tag: 'disco',       label: 'Disco' },
 ];
 
-const GENEROS = [...new Set(CATALOGO.map((c) => c.genero))];
+const ANO_MIN = 1966;
+const ANO_MAX = 2016;
 
-// ── Cartas de demanda ───────────────────────────────────────────────────────
-// Cada carta define COMO os discos são pontuados na batalha daquela rodada.
-//   tipo 'genero'   → disco do gênero pedido vale 3×; os outros, 1×.
-//   tipo 'raridade' → vale (valor × multiplicador de raridade).
-//   tipo 'valor'    → vale o valor de tabela puro (maior preço leva).
-const DEMANDAS_GENERO = {
-  Rock:         { titulo: 'A FREGUESIA QUER ROCK',   sub: 'Disco de rock vende por 3× hoje' },
-  Jazz:         { titulo: 'NOITE DE JAZZ',           sub: 'Disco de jazz vende por 3× hoje' },
-  Soul:         { titulo: 'A PEDIDA É SOUL',         sub: 'Disco de soul vende por 3× hoje' },
-  MPB:          { titulo: 'TARDE DE MPB',            sub: 'Disco de MPB vende por 3× hoje' },
-  'Eletrônico': { titulo: 'A PISTA PEDE ELETRÔNICO', sub: 'Disco eletrônico vende por 3× hoje' },
-  Punk:         { titulo: 'NOITE PUNK NO BAIRRO',    sub: 'Disco punk vende por 3× hoje' },
-  Pop:          { titulo: 'HORA DO POP',             sub: 'Disco pop vende por 3× hoje' },
-  'Hip-Hop':    { titulo: 'O ROLÊ QUER HIP-HOP',     sub: 'Disco de hip-hop vende por 3× hoje' },
-};
+const ALBUNS_POR_ENGRADADO = 20; // quantos discos aparecem no engradado
+const DINHEIRO_INICIAL = 500;
+const TOTAL_RODADAS = 5;
+const LOJA_MAX = 5;   // teto de álbuns guardados na loja (acervo final)
+const COMPRA_MAX = 10; // teto de compras por rodada
+const COMPRA_MIN = 4;  // alvo recomendado por rodada
 
-const DEMANDA_RARIDADE = {
-  tipo: 'raridade',
-  titulo: 'CAÇADORES DE RARIDADE',
-  sub: 'Vale valor × raridade — raro 2×, lendário 4×',
-};
-
-const DEMANDA_VALOR = {
-  tipo: 'valor',
-  titulo: 'QUEM TEM O DISCO MAIS CARO LEVA',
-  sub: 'Vence o maior valor de tabela',
-};
-
-function cartaDeGenero(genero) {
-  return { tipo: 'genero', genero, ...DEMANDAS_GENERO[genero] };
-}
-
+// ── Utilidades ──────────────────────────────────────────────────────────────
 function embaralhar(arr) {
   const a = arr.slice();
   for (let i = a.length - 1; i > 0; i--) {
@@ -119,38 +53,101 @@ function embaralhar(arr) {
   return a;
 }
 
-// Monta a sequência de demandas da partida.
-// Garante sempre uma rodada de raridade e uma de valor; o resto, gêneros
-// sorteados. A ordem final é embaralhada para a arena não ficar previsível.
-function montarDemandas(total) {
-  const cartas = [];
-  if (total >= 2) {
-    cartas.push(DEMANDA_RARIDADE, DEMANDA_VALOR);
-  }
-  const generos = embaralhar(GENEROS);
-  while (cartas.length < total) {
-    cartas.push(cartaDeGenero(generos[(cartas.length) % generos.length]));
-  }
-  return embaralhar(cartas).slice(0, total);
+function aleatorioInt(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
-// Pontuação de um disco diante da demanda da rodada.
-function pontuar(demanda, vinil) {
-  if (!demanda || !vinil) return 0;
-  if (demanda.tipo === 'genero') {
-    return vinil.valor * (vinil.genero === demanda.genero ? 3 : 1);
+function clamp(n, min, max) {
+  return Math.max(min, Math.min(max, n));
+}
+
+function round1(n) {
+  return Math.round(n * 10) / 10;
+}
+
+// hash FNV-1a determinístico (com tempero) → fração [0,1)
+function frac(str, sal) {
+  let h = 0x811c9dc5;
+  const s = (sal || '') + '·' + String(str || '');
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
   }
-  if (demanda.tipo === 'raridade') {
-    return vinil.valor * RARIDADES[vinil.raridade].mult;
+  return ((h >>> 0) % 100000) / 100000;
+}
+
+// Notas determinísticas a partir do MBID.
+//   usuários: 2.6 – 9.6   (define o preço)
+//   crítica:  usuários ± 1.7  (oculta; decide as batalhas)
+function notasDe(mbid) {
+  const usuarios = round1(2.6 + frac(mbid, 'u') * 7.0);
+  const desvio = (frac(mbid, 'c') - 0.5) * 3.4; // ±1.7
+  const critica = round1(clamp(usuarios + desvio, 1.0, 10.0));
+  return { usuarios, critica };
+}
+
+// Preço = nota dos usuários × 10, variando ±25% (determinístico por MBID).
+function precoDe(usuarios, mbid) {
+  const fator = 0.75 + frac(mbid, 'p') * 0.5; // 0.75 – 1.25
+  return Math.max(5, Math.round(usuarios * 10 * fator));
+}
+
+// Monta o objeto-álbum do jogo a partir de um MBID e metadados reais.
+function montarAlbum(mbid, album, artista, generoLabel, ano) {
+  const notas = notasDe(mbid);
+  return {
+    mbid,
+    album,
+    artista,
+    genero: generoLabel,
+    ano,
+    capaUrl: `https://coverartarchive.org/release-group/${mbid}/front-250`,
+    usuarios: notas.usuarios,
+    critica: notas.critica,
+    valor: precoDe(notas.usuarios, mbid),
+  };
+}
+
+// ── Engradado de reserva (offline) ──────────────────────────────────────────
+// Se o MusicBrainz estiver fora do ar, o jogo não trava: fabrica um engradado
+// fictício do gênero/ano pedido (sem capa real — o cliente usa a arte gerada).
+const PALAVRAS_A = ['Trovão', 'Néon', 'Asfalto', 'Eclipse', 'Veludo', 'Fumaça', 'Maré', 'Pulso',
+  'Cinzas', 'Aurora', 'Concreto', 'Sereno', 'Vertigem', 'Lanterna', 'Câmbio', 'Estática'];
+const PALAVRAS_B = ['de Cobre', 'Particular', 'sem Saída', 'da Madrugada', 'Mecânica', 'Sintética',
+  'em Lá Menor', 'Infinito', 'de Vitrine', 'Distante', 'do Subsolo', 'Provisório', 'de Carbono'];
+const ARTISTAS_F = ['Os Cometas', 'Trio Penumbra', 'Lobo de Neon', 'Clube Veludo', 'Módulo Lunar',
+  'Banda Estilhaço', 'Coral Aurora', 'Vetor & Vértice', 'As Hienas', 'Caravana Selvagem'];
+
+function engradadoFallback(generoLabel, ano) {
+  const out = [];
+  for (let i = 0; i < ALBUNS_POR_ENGRADADO; i++) {
+    const semente = `${generoLabel}-${ano}-${i}`;
+    const a = PALAVRAS_A[Math.floor(frac(semente, 'a') * PALAVRAS_A.length)];
+    const b = PALAVRAS_B[Math.floor(frac(semente, 'b') * PALAVRAS_B.length)];
+    const art = ARTISTAS_F[Math.floor(frac(semente, 'r') * ARTISTAS_F.length)];
+    const mbid = `offline-${semente}`;
+    const alb = montarAlbum(mbid, `${a} ${b}`, art, generoLabel, ano);
+    alb.capaUrl = null; // sem capa real
+    out.push(alb);
   }
-  return vinil.valor; // 'valor'
+  return out;
 }
 
 module.exports = {
-  RARIDADES,
-  CATALOGO,
   GENEROS,
+  ANO_MIN,
+  ANO_MAX,
+  ALBUNS_POR_ENGRADADO,
+  DINHEIRO_INICIAL,
+  TOTAL_RODADAS,
+  LOJA_MAX,
+  COMPRA_MAX,
+  COMPRA_MIN,
   embaralhar,
-  montarDemandas,
-  pontuar,
+  aleatorioInt,
+  clamp,
+  notasDe,
+  precoDe,
+  montarAlbum,
+  engradadoFallback,
 };

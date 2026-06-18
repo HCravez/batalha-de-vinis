@@ -17,11 +17,7 @@ const io = new Server(server);
 
 const PUBLIC = path.join(__dirname, 'public');
 app.use(express.static(PUBLIC));
-const PORT = process.env.PORT || 3000;
 
-app.listen(PORT, () => {
-    console.log(`Servidor a rodar com sucesso na porta ${PORT}`);
-});
 app.get('/', (_req, res) => res.sendFile(path.join(PUBLIC, 'index.html')));
 
 // Qualquer /CODIGO abre a sala (ignora caminhos com ponto, que são arquivos).
@@ -195,7 +191,8 @@ io.on('connection', (socket) => {
   });
 });
 
+// Inicialização correta usando a variável de ambiente da AWS
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log(`\n  🎙️  Batalha de Vinis no ar  →  http://localhost:${PORT}\n`);
+  console.log(`\n  🎙️  Batalha de Vinis no ar  →  porta: ${PORT}\n`);
 });
