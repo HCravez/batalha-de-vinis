@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Batalha de Vinis</title>
+  <meta name="description" content="A disputa das lojas de vinil. Abra sua loja, chame a galera e veja quem fatura mais na batalha de vendas." />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Caveat:wght@500;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/styles.css" />
+</head>
+<body>
+  <div class="tela">
+    <main class="vitrine">
+      <header class="vitrine__topo">
+        <span>BATALHA DE VINIS<span class="ponto">.</span></span>
+        <small>a disputa das lojas de disco</small>
+      </header>
+
+      <section class="vitrine__palco">
+        <div class="vitrine__texto">
+          <span class="vitrine__eyebrow">toca a agulha…</span>
+          <h1 class="vitrine__titulo">Batalha<br />de <em>Vinis</em></h1>
+          <p class="vitrine__lead">
+            Cada um abre sua loja de disco e monta uma caixa secreta de vinis.
+            A freguesia pede, vocês vendem — mas ninguém vê o disco do rival até
+            o balcão. Quem faturar mais sobe na parada de sucessos.
+          </p>
+
+          <div class="vitrine__acoes">
+            <button id="abrir" class="btn btn--rosa btn--g btn--bloco">Abrir minha loja</button>
+
+            <div class="ou-risca">ou entre numa que já existe</div>
+
+            <form id="form-entrar" class="entrar-loja" autocomplete="off">
+              <input id="codigo" name="codigo" maxlength="6" inputmode="latin"
+                     placeholder="CÓDIGO" aria-label="Código da loja" />
+              <button type="submit" class="btn btn--vinil">Entrar</button>
+            </form>
+          </div>
+        </div>
+
+        <div class="palco-disco">
+          <div class="disco" role="img" aria-label="Disco de vinil girando">
+            <div class="disco__label">
+              <span class="disco__label-top">lado A</span>
+              <span class="disco__label-title">Batalha<br />de Vinis</span>
+            </div>
+            <div class="disco__hole"></div>
+          </div>
+        </div>
+      </section>
+
+      <div class="marquee" aria-hidden="true">
+        <div class="marquee__trilha">
+          <span>Trovão de Veludo</span><span class="disco-bolinha">●</span>
+          <span>Fumaça de Meia-Noite</span><span class="disco-bolinha">●</span>
+          <span>Néon Líquido</span><span class="disco-bolinha">●</span>
+          <span>Coração de Cobre</span><span class="disco-bolinha">●</span>
+          <span>Manifesto Rasgado</span><span class="disco-bolinha">●</span>
+          <span>Lenda do Boombox</span><span class="disco-bolinha">●</span>
+          <span>Saudade Mecânica</span><span class="disco-bolinha">●</span>
+          <span>Refrão Grudento</span><span class="disco-bolinha">●</span>
+          <!-- repetição para o loop contínuo -->
+          <span>Trovão de Veludo</span><span class="disco-bolinha">●</span>
+          <span>Fumaça de Meia-Noite</span><span class="disco-bolinha">●</span>
+          <span>Néon Líquido</span><span class="disco-bolinha">●</span>
+          <span>Coração de Cobre</span><span class="disco-bolinha">●</span>
+          <span>Manifesto Rasgado</span><span class="disco-bolinha">●</span>
+          <span>Lenda do Boombox</span><span class="disco-bolinha">●</span>
+          <span>Saudade Mecânica</span><span class="disco-bolinha">●</span>
+          <span>Refrão Grudento</span><span class="disco-bolinha">●</span>
+        </div>
+      </div>
+
+      <footer class="vitrine__rodape">
+        <details>
+          <summary>Como se joga?</summary>
+          <p>
+            2 a 6 lojistas. Você começa com 5 discos na caixa, escondidos dos
+            rivais. São 4 batalhas de venda: em cada uma, a freguesia revela um
+            pedido (um gênero, uma raridade ou o disco mais caro) e cada lojista
+            escolhe, em segredo, um disco para vender. Os discos viram ao mesmo
+            tempo no balcão — quem atende melhor o pedido leva a venda cheia; os
+            outros vendem por menos. No fim, o disco que sobrou na caixa de cada
+            um é revelado e rende um bônus de colecionador. Maior faturamento
+            vence a parada de sucessos.
+          </p>
+        </details>
+      </footer>
+    </main>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/landing.js"></script>
+</body>
+</html>

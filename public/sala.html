@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sala · Batalha de Vinis</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Caveat:wght@500;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/styles.css" />
+</head>
+<body>
+  <div class="tela">
+    <div class="sala">
+      <header class="barra">
+        <a class="barra__marca" href="/" title="Voltar para a vitrine">BATALHA DE VINIS<span class="ponto">.</span></a>
+        <div class="codigo-chip">
+          <div>
+            <small>loja</small>
+            <strong id="codigo-loja">····</strong>
+          </div>
+          <button id="copiar-link" class="btn-fantasma" type="button">Copiar link</button>
+        </div>
+      </header>
+
+      <div class="conteudo">
+        <!-- LOBBY -->
+        <section id="lobby" class="lobby oculto"></section>
+
+        <!-- JOGO -->
+        <section id="jogo" class="jogo oculto"></section>
+
+        <!-- REVELAÇÃO -->
+        <section id="revelacao" class="revelacao oculto"></section>
+
+        <!-- FIM -->
+        <section id="fim" class="fim oculto"></section>
+
+        <!-- conexão / erro -->
+        <section id="aviso-conexao" class="lobby oculto">
+          <div class="lobby__cabeca">
+            <span class="selo">um instante…</span>
+            <h2>Entrando na loja</h2>
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/sala.js"></script>
+</body>
+</html>

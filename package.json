@@ -1,0 +1,16 @@
+{
+  "name": "batalha-de-vinis",
+  "version": "1.0.0",
+  "description": "Jogo multiplayer em tempo real onde lojas de vinil disputam vendas. Node.js + Socket.IO.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "keywords": ["socket.io", "multiplayer", "jogo", "vinil"],
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.19.2",
+    "socket.io": "^4.7.5"
+  }
+}
