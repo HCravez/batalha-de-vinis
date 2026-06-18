@@ -25,6 +25,7 @@ function novaSala(code, modo) {
     rodada: 0,
     totalRodadas: G.TOTAL_RODADAS,
     jogadores: [],
+    mbidsComprados: new Set(), // discos (MBID) já levados por alguém — bloqueados p/ os demais
     ultimaRevelacao: null,
     ultimoFim: null,
     timerProxima: null,
@@ -112,6 +113,7 @@ function iniciar(sala) {
     return { erro: 'Todos os lojistas precisam estar prontos.' };
   }
   sala._uid = 0;
+  sala.mbidsComprados = new Set();
   for (const j of sala.jogadores) {
     j.dinheiro = G.DINHEIRO_INICIAL;
     j.loja = [];
@@ -131,6 +133,7 @@ function iniciarSolo(sala) {
   if (!j.nome) j.nome = 'Você';
   j.pronto = true;
   sala._uid = 0;
+  sala.mbidsComprados = new Set();
   j.dinheiro = G.DINHEIRO_INICIAL;
   j.loja = [];
   j.combosVistos = new Set();
@@ -306,9 +309,11 @@ function comprar(sala, playerId, mbid) {
   }
   const alvo = j.engradado.albuns.find((a) => a.mbid === mbid);
   if (!alvo) return { erro: 'Esse disco não está no engradado.' };
+  if (sala.mbidsComprados.has(alvo.mbid)) return { erro: 'Outro lojista já levou esse disco.' };
   if (alvo.valor > j.dinheiro) return { erro: 'Dinheiro insuficiente para esse disco.' };
 
   j.dinheiro -= alvo.valor;
+  sala.mbidsComprados.add(alvo.mbid); // bloqueia o disco para todos os lojistas
   j.comprados.push({ ...alvo, uid: `${sala.code}-${sala._uid++}`, pago: alvo.valor });
   j.engradado = null; // engradado gasto — server abre o próximo
   return { ok: true, podeMais: j.comprados.length < G.COMPRA_MAX };
@@ -552,6 +557,7 @@ function finalizar(sala) {
 function reiniciar(sala) {
   sala.fase = 'lobby';
   sala.rodada = 0;
+  sala.mbidsComprados = new Set();
   sala.ultimaRevelacao = null;
   sala.ultimoFim = null;
   for (const j of sala.jogadores) {
@@ -632,7 +638,11 @@ function visao(sala, playerId) {
             ano: eu.engradado.ano,
             genero: eu.engradado.genero,
             offline: eu.engradado.offline,
-            albuns: eu.engradado.albuns.map(albumPublico),
+            // bloqueado = já levado por algum lojista (some/trava para os outros)
+            albuns: eu.engradado.albuns.map((a) => ({
+              ...albumPublico(a),
+              bloqueado: sala.mbidsComprados.has(a.mbid),
+            })),
           }
         : null,
     };

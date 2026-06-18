@@ -199,9 +199,13 @@ async function fetchProfundo(generoTag, ano, prioridade) {
 }
 
 function montarEngradado(dados, generoLabel, ano) {
-  const albuns = dados.itens
-    .slice(0, G.ALBUNS_POR_ENGRADADO)
-    .map((it) => G.montarAlbum(it.mbid, it.album, it.artista, generoLabel, ano, it.users, it.listens));
+  // Pega os 20 mais conhecidos e EMBARALHA a ordem de exibição (a posição não
+  // deve entregar quem é mais popular). Refeito a cada montagem do engradado.
+  const albuns = G.embaralhar(
+    dados.itens
+      .slice(0, G.ALBUNS_POR_ENGRADADO)
+      .map((it) => G.montarAlbum(it.mbid, it.album, it.artista, generoLabel, ano, it.users, it.listens))
+  );
   return { ano, genero: generoLabel, generoTag: dados.tag, albuns, offline: false, completo: dados.completo !== false };
 }
 

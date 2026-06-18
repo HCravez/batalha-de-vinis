@@ -97,6 +97,7 @@
     if (opts.selecionado) classes.push('is-selecionado');
     if (opts.campeao) classes.push('is-campeao');
     if (opts.bloqueado) classes.push('is-bloqueado');
+    if (opts.levado) classes.push('is-levado');
 
     var tabCor = COR_GENERO[v.genero] || '#ff3d6e';
     var attrs = 'style="--c1:' + cor.c1 + ';--c2:' + cor.c2 + '"';
@@ -125,11 +126,13 @@
         '</span>';
     }
 
+    var levado = opts.levado ? '<div class="sleeve__levado"><span>já levado</span></div>' : '';
+
     return '' +
       '<div class="' + classes.join(' ') + '" ' + attrs + '>' +
         '<div class="sleeve__art"><div class="sleeve__art-bola"></div>' + capa + '</div>' +
         '<span class="sleeve__tab" style="--tab:' + tabCor + '">' + esc(v.genero) + ' · ' + esc(v.ano) + '</span>' +
-        sticker + avBadge +
+        sticker + avBadge + levado +
         '<div class="sleeve__meta">' +
           '<span class="sleeve__album">' + esc(v.album) + '</span>' +
           '<span class="sleeve__artista">' + esc(v.artista) + '</span>' +
@@ -334,9 +337,12 @@
     var area = $('#engradado-area');
     if (!area) return;
 
-    // limpa a seleção se o disco não está mais no engradado
+    // limpa a seleção se o disco saiu do engradado ou foi levado por um rival
     var albuns = (eu.engradado && eu.engradado.albuns) || [];
-    if (selecionadoMbid && !albuns.some(function (a) { return a.mbid === selecionadoMbid; })) selecionadoMbid = null;
+    if (selecionadoMbid) {
+      var selAtual = albuns.find(function (a) { return a.mbid === selecionadoMbid; });
+      if (!selAtual || selAtual.bloqueado) selecionadoMbid = null;
+    }
 
     if (eu.carregando) {
       area.innerHTML = garimpando();
@@ -394,6 +400,7 @@
 
     var grade = '<div class="engradado-grade">' +
       albuns.map(function (v) {
+        if (v.bloqueado) return sleeveFront(v, { bloqueado: true, levado: true });
         var caro = v.valor > eu.dinheiro;
         return sleeveFront(v, { mao: true, selecionado: v.mbid === selecionadoMbid, bloqueado: caro && v.mbid !== selecionadoMbid });
       }).join('') + '</div>';
@@ -650,14 +657,17 @@
         '<div class="parada__acervo">acervo <b>' + nota(c.acervo) + '</b> ★</div>' +
         '<div class="parada__grana">' + money(c.dinheiro) + '</div></div>';
     }).join('') + '</div>';
-    var blocos = classif.map(function (c) {
+    var blocos = classif.map(function (c, i) {
       var discos = (c.loja || []).map(function (v) { return sleeveFront(v, { mostrarAvaliacao: true, semPreco: true }); }).join('');
-      return '<div class="reveal-final__bloco">' +
-        '<div class="reveal-final__nome">' + esc(c.nome || 'Lojista') + '</div>' +
-        '<div class="reveal-final__bonus">acervo ' + nota(c.acervo) + ' ★ · média ' + nota(c.media) + ' · ' + money(c.dinheiro) + '</div>' +
-        '<div class="reveal-final__discos">' + (discos || '<span class="esperando">loja vazia</span>') + '</div></div>';
+      return '<div class="loja-final' + (i === 0 ? ' campea' : '') + '">' +
+        '<div class="loja-final__cab">' +
+          '<span class="loja-final__nome">' + (i + 1) + 'º · ' + esc(c.nome || 'Lojista') + (i === 0 ? ' 👑' : '') + '</span>' +
+          '<span class="loja-final__stats">acervo <b>' + nota(c.acervo) + ' ★</b> · média ' + nota(c.media) + ' · ' + money(c.dinheiro) + '</span>' +
+        '</div>' +
+        '<div class="loja-final__discos">' + (discos || '<span class="esperando">loja vazia</span>') + '</div>' +
+      '</div>';
     }).join('');
-    var reveal = '<div class="reveal-final"><h3>As lojas e seus acervos</h3><div class="grade">' + blocos + '</div></div>';
+    var reveal = '<div class="reveal-final"><h3>As lojas e seus acervos</h3><div class="lojas">' + blocos + '</div></div>';
     var controles = (S && S.souHost)
       ? '<div class="fim__controles"><button id="btn-denovo" class="btn btn--rosa btn--g">Tocar de novo</button><p class="dica">Volta todo mundo para o lobby.</p></div>'
       : '<div class="fim__controles"><p class="dica">O anfitrião pode começar uma nova partida.</p></div>';

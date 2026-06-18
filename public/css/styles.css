@@ -602,8 +602,30 @@ h1, h2, h3 { font-family: var(--fonte-titulo); font-weight: 400; letter-spacing:
 .reveal-final__bloco { background: var(--ink-2); border: 2px solid var(--ink-3); border-radius: var(--r); padding: 12px; }
 .reveal-final__nome { font-family: var(--fonte-titulo); font-size: 1.1rem; margin-bottom: 4px; }
 .reveal-final__bonus { font-size: .78rem; color: var(--gold); margin-bottom: 10px; }
-.reveal-final__discos { display: flex; gap: 10px; flex-wrap: wrap; }
+.reveal-final__discos { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 8px; justify-content: center; }
 .reveal-final__discos .sleeve { --w: 120px; }
+
+/* Lojas no fim (multiplayer): cada loja é uma prateleira HORIZONTAL */
+.reveal-final .lojas { display: grid; gap: 16px; }
+.loja-final {
+  background: var(--ink-2); border: 2px solid var(--ink-3); border-radius: var(--r-lg);
+  padding: 14px 16px;
+}
+.loja-final.campea { border-color: var(--gold); box-shadow: 0 0 0 2px rgba(255, 200, 61, .3), var(--sombra); }
+.loja-final__cab {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+  flex-wrap: wrap; margin-bottom: 12px;
+}
+.loja-final__nome { font-family: var(--fonte-titulo); font-size: 1.35rem; word-break: break-word; }
+.loja-final__stats { color: var(--smoke); font-size: .92rem; white-space: nowrap; }
+.loja-final__stats b { color: var(--gold); font-family: var(--fonte-titulo); }
+.loja-final__discos {
+  display: flex; gap: 12px; overflow-x: auto; padding-bottom: 8px;
+  scroll-snap-type: x proximity;
+}
+.loja-final__discos .sleeve { --w: 128px; scroll-snap-align: start; }
+.loja-final__discos::-webkit-scrollbar { height: 8px; }
+.loja-final__discos::-webkit-scrollbar-thumb { background: var(--ink-3); border-radius: 8px; }
 
 .fim__controles { text-align: center; display: grid; gap: 10px; justify-items: center; }
 
@@ -922,3 +944,17 @@ h1, h2, h3 { font-family: var(--fonte-titulo); font-weight: 400; letter-spacing:
 .acervo-remover:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
 
 .credito-rodada { color: var(--gold); font-family: var(--fonte-titulo); }
+
+/* Disco já levado por outro lojista (bloqueado na compra) */
+.sleeve.is-levado { filter: grayscale(.7) brightness(.66); cursor: not-allowed; }
+.sleeve.is-levado:hover { transform: none; }
+.sleeve__levado {
+  position: absolute; inset: 0; z-index: 5; display: grid; place-items: center;
+  background: rgba(10, 8, 6, .42);
+}
+.sleeve__levado span {
+  font-family: var(--fonte-titulo); text-transform: uppercase; letter-spacing: 2px;
+  color: #fff; background: var(--pink-d); border: 2px solid #120b0d;
+  padding: 4px 12px; border-radius: 6px; transform: rotate(-8deg);
+  box-shadow: 2px 2px 0 rgba(0, 0, 0, .4);
+}
