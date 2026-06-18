@@ -38,13 +38,13 @@ const GENEROS = [
 ];
 
 const ALBUNS_POR_ENGRADADO = 20;
-const DINHEIRO_INICIAL = 500;
-const TOTAL_RODADAS = 5;
+const DINHEIRO_INICIAL = 300;
+const TOTAL_RODADAS = 3;
 const LOJA_MAX = 5;       // teto de álbuns guardados (acervo final)
 const COMPRA_MAX = 10;    // teto de compras por rodada
 const COMPRA_MIN = 4;     // alvo recomendado por rodada
-const REROLL_ANO = 3;     // trocas de ano por jogador por rodada
-const REROLL_GENERO = 3;  // trocas de gênero por jogador por rodada
+const REROLL_ANO = 1;     // trocas de ano por jogador por rodada
+const REROLL_GENERO = 1;  // trocas de gênero por jogador por rodada
 const MIN_USUARIOS = 2;   // mínimo de ouvintes reais p/ entrar no engradado
 
 // ── Utilidades ──────────────────────────────────────────────────────────────
@@ -88,6 +88,15 @@ function generoAleatorio(exTag) {
   } while (exTag && g.tag === exTag && GENEROS.length > 1);
   return g;
 }
+// Todos os anos válidos de um gênero (décadas liberadas ∩ [ANO_MIN, ANO_MAX]).
+function anosDoGenero(genero) {
+  const anos = [];
+  for (const dec of genero.decadas || TODAS_DECADAS) {
+    for (let y = Math.max(ANO_MIN, dec); y <= Math.min(ANO_MAX, dec + 9); y++) anos.push(y);
+  }
+  return anos;
+}
+
 // Ano válido para o gênero: sorteia uma das décadas liberadas e um ano dentro.
 function anoDoGenero(genero, exAno) {
   const decadas = genero.decadas || TODAS_DECADAS;
@@ -188,6 +197,7 @@ module.exports = {
   clamp,
   acharGenero,
   generoAleatorio,
+  anosDoGenero,
   anoDoGenero,
   avaliacaoDe,
   precoDe,

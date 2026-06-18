@@ -49,6 +49,7 @@ function novoJogador(playerId, socketId, nome) {
     engradado: null,      // { ano, genero, generoTag, albuns[], offline }
     carregando: false,
     _sorteioPendente: null,
+    combosVistos: new Set(), // 'tag|ano' já sorteados nesta partida (não repete)
     rerollAnoRestante: G.REROLL_ANO,
     rerollGeneroRestante: G.REROLL_GENERO,
     comprados: [],        // discos comprados nesta rodada (com uid + pago)
@@ -113,6 +114,7 @@ function iniciar(sala) {
   for (const j of sala.jogadores) {
     j.dinheiro = G.DINHEIRO_INICIAL;
     j.loja = [];
+    j.combosVistos = new Set();
   }
   sala.rodada = 1;
   sala.ultimaRevelacao = null;
@@ -130,6 +132,7 @@ function iniciarSolo(sala) {
   sala._uid = 0;
   j.dinheiro = G.DINHEIRO_INICIAL;
   j.loja = [];
+  j.combosVistos = new Set();
   sala.rodada = 1;
   sala.ultimaRevelacao = null;
   sala.ultimoFim = null;
@@ -155,6 +158,19 @@ function comecarCompra(sala) {
 
 // ── Sorteio de engradado ─────────────────────────────────────────────────────
 //   tipo: 'novo' (gênero+ano novos) | 'ano' (troca o ano) | 'genero' (troca o gênero)
+
+function escolherUm(arr) {
+  return arr[G.aleatorioInt(0, arr.length - 1)];
+}
+
+// Anos de um gênero que ainda não saíram (e ≠ ano atual). Fallback: todos.
+function anosLivres(genero, seen, exAno) {
+  const livres = G.anosDoGenero(genero).filter(
+    (a) => a !== exAno && !seen.has(genero.tag + '|' + a)
+  );
+  return livres.length ? livres : G.anosDoGenero(genero).filter((a) => a !== exAno);
+}
+
 function prepararSorteio(sala, playerId, tipo) {
   if (sala.fase !== 'compra') return { erro: 'Não dá para garimpar agora.' };
   const j = acharJogador(sala, playerId);
@@ -166,24 +182,32 @@ function prepararSorteio(sala, playerId, tipo) {
   }
 
   const atual = j.engradado;
+  const seen = j.combosVistos;
   let genero, ano;
 
   if (tipo === 'ano') {
     if (!atual) return { erro: 'Abra um engradado primeiro.' };
-    if (j.rerollAnoRestante <= 0) return { erro: 'Acabaram suas trocas de ano nesta rodada.' };
+    if (j.rerollAnoRestante <= 0) return { erro: 'Você já trocou o ano nesta rodada.' };
     genero = G.acharGenero(atual.generoTag) || G.generoAleatorio(null);
-    ano = G.anoDoGenero(genero, atual.ano);
+    ano = escolherUm(anosLivres(genero, seen, atual.ano));
     j.rerollAnoRestante -= 1;
-  } else if (tipo === 'genero') {
-    if (!atual) return { erro: 'Abra um engradado primeiro.' };
-    if (j.rerollGeneroRestante <= 0) return { erro: 'Acabaram suas trocas de gênero nesta rodada.' };
-    genero = G.generoAleatorio(atual.generoTag);
-    ano = G.anoDoGenero(genero, null);
-    j.rerollGeneroRestante -= 1;
   } else {
-    tipo = 'novo';
-    genero = G.generoAleatorio(null);
-    ano = G.anoDoGenero(genero, null);
+    // 'genero' e 'novo': escolhe um gênero que ainda tenha ano inédito.
+    const exTag = tipo === 'genero' && atual ? atual.generoTag : null;
+    if (tipo === 'genero') {
+      if (!atual) return { erro: 'Abra um engradado primeiro.' };
+      if (j.rerollGeneroRestante <= 0) return { erro: 'Você já trocou o gênero nesta rodada.' };
+      j.rerollGeneroRestante -= 1;
+    } else {
+      tipo = 'novo';
+    }
+    const opcoes = G.GENEROS
+      .filter((g) => !exTag || g.tag !== exTag)
+      .map((g) => ({ g, anos: G.anosDoGenero(g).filter((a) => !seen.has(g.tag + '|' + a)) }));
+    const comLivre = opcoes.filter((o) => o.anos.length);
+    const escolhido = comLivre.length ? escolherUm(comLivre) : escolherUm(opcoes);
+    genero = escolhido.g;
+    ano = escolherUm(escolhido.anos.length ? escolhido.anos : G.anosDoGenero(genero));
   }
 
   j.carregando = true;
@@ -198,13 +222,17 @@ async function executarSorteio(sala, playerId) {
 
   let res = await MB.buscarEngradado(ped.genero.tag, ped.genero.label, ped.ano);
 
-  // Engradado magro: tenta de novo variando a dimensão livre.
+  // Engradado magro: tenta de novo variando a dimensão livre (sem repetir combos).
   let tentativas = 0;
   while (!res.offline && res.albuns.length < MB.MIN_ALBUNS && tentativas < 4) {
-    let genero = G.acharGenero(ped.genero.tag);
-    if (ped.tipo === 'genero' || !genero) genero = G.generoAleatorio(ped.genero.tag);
-    if (ped.tipo === 'novo') genero = G.generoAleatorio(null);
-    const ano = G.anoDoGenero(genero, ped.ano);
+    let genero, ano, t2 = 0;
+    do {
+      genero = ped.tipo === 'novo'
+        ? G.generoAleatorio(null)
+        : (G.acharGenero(ped.genero.tag) || G.generoAleatorio(null));
+      ano = G.anoDoGenero(genero, ped.ano);
+      t2++;
+    } while (j.combosVistos.has(genero.tag + '|' + ano) && t2 < 40);
     res = await MB.buscarEngradado(genero.tag, genero.label, ano);
     ped.genero = { tag: genero.tag, label: genero.label };
     ped.ano = ano;
@@ -220,6 +248,7 @@ async function executarSorteio(sala, playerId) {
     albuns: res.albuns.map((a) => ({ ...a })),
     offline: res.offline,
   };
+  j.combosVistos.add(res.generoTag + '|' + res.ano); // não sorteia de novo
   j.carregando = false;
   j._sorteioPendente = null;
   return { ok: true };
@@ -269,6 +298,20 @@ function forcarEncerrarDesconectados(sala) {
       j.carregando = false;
     }
   }
+}
+
+// Remove (descarta) um disco guardado na loja, abrindo vaga no acervo.
+function removerDaLoja(sala, playerId, index) {
+  if (sala.fase !== 'compra' && sala.fase !== 'venda') {
+    return { erro: 'Só dá para mexer na loja durante a compra ou a venda.' };
+  }
+  const j = acharJogador(sala, playerId);
+  if (!j) return { erro: 'Jogador não encontrado.' };
+  if (!Number.isInteger(index) || index < 0 || index >= j.loja.length) {
+    return { erro: 'Esse disco não está na loja.' };
+  }
+  const [removido] = j.loja.splice(index, 1);
+  return { ok: true, removido };
 }
 
 // ── Venda ────────────────────────────────────────────────────────────────────
@@ -352,10 +395,13 @@ function precoRevenda(disco) {
   return Math.max(1, Math.round(disco.valor * (0.5 + 0.6 * (disco.vitorias || 0))));
 }
 
-// Modo sozinho: o disco vale o seu "valor real" = avaliação × 10. Quem pechinchou
-// (pagou abaixo) tem lucro; quem pagou caro tem prejuízo.
+// Modo sozinho — mercado de colecionador com swings que IMPORTAM. O disco vale
+// avaliação² × (10/6): um clássico rende MUITO, um disco fraco encalha barato.
+// Como o preço pago é ~avaliação×10 ±25%, achar um clássico subvalorizado dá
+// lucro alto e pagar caro num disco mediano dá prejuízo de verdade.
+//   ★10 → $167 | ★8 → $107 | ★7 → $82 | ★6 → $60 | ★5 → $42 | ★3 → $15 | ★2 → $7
 function precoVendaSolo(disco) {
-  return Math.max(1, Math.round(disco.avaliacao * 10));
+  return Math.max(1, Math.round(disco.avaliacao * disco.avaliacao * (10 / 6)));
 }
 
 function resolverVendas(sala) {
@@ -472,6 +518,7 @@ function reiniciar(sala) {
     j.engradado = null;
     j.carregando = false;
     j._sorteioPendente = null;
+    j.combosVistos = new Set();
     j.rerollAnoRestante = G.REROLL_ANO;
     j.rerollGeneroRestante = G.REROLL_GENERO;
     j.comprados = [];
@@ -575,6 +622,7 @@ module.exports = {
   encerrarCompras,
   todosEncerraramCompra,
   forcarEncerrarDesconectados,
+  removerDaLoja,
   comecarVenda,
   definirVenda,
   confirmarVenda,

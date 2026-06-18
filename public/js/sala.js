@@ -151,10 +151,12 @@
     for (var i = 0; i < max; i++) {
       var d = loja[i];
       if (d) {
-        slots += '<div class="acervo-slot is-cheio">' + sleeveFront(d, {
-          semPreco: true,
-          mostrarAvaliacao: d.avaliacao != null, // só no fim
-        }) + '<span class="acervo-slot__rod">rodada ' + (d.rodada || '?') + '</span></div>';
+        slots += '<div class="acervo-slot is-cheio">' +
+          '<button class="acervo-remover" data-loja-idx="' + i + '" title="Remover da loja" aria-label="Remover ' + esc(d.album) + ' da loja">✕</button>' +
+          sleeveFront(d, {
+            semPreco: true,
+            mostrarAvaliacao: d.avaliacao != null, // só no fim
+          }) + '<span class="acervo-slot__rod">rodada ' + (d.rodada || '?') + '</span></div>';
       } else {
         slots += '<div class="acervo-slot is-vago"><div class="acervo-vazio">vaga ' + (i + 1) + '</div></div>';
       }
@@ -185,6 +187,18 @@
   socket.on('avisoSala', function (msg) { aguardando = false; toast(msg); render(); });
   socket.on('revelacaoVendas', function (p) { mostrarBatalha(p); });
   socket.on('fimDeJogo', function (p) { mostrarFim(p); });
+
+  // Remover disco da loja (delegação — os botões ✕ são recriados a cada render).
+  document.addEventListener('click', function (e) {
+    var b = e.target && e.target.closest ? e.target.closest('.acervo-remover') : null;
+    if (!b) return;
+    var idx = parseInt(b.getAttribute('data-loja-idx'), 10);
+    var eu = S && S.voce;
+    if (!eu || !eu.loja || !eu.loja[idx]) return;
+    var d = eu.loja[idx];
+    if (!confirm('Remover "' + d.album + '" da sua loja? Você abre essa vaga do acervo.')) return;
+    socket.emit('removerDaLoja', { index: idx });
+  });
 
   function mostrarErroEntrada(msg) {
     mostrarSecao('aviso');

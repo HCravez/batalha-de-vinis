@@ -79,16 +79,17 @@ objetivo é montar o melhor **acervo de 5 discos**: ao fim das 5 rodadas, a
 
 ## 📜 Regras
 
-- 2 a 6 lojistas, **5 rodadas**, **$500** no caixa (o dinheiro é acumulado entre
+- 2 a 6 lojistas, **3 rodadas**, **$300** no caixa (o dinheiro é acumulado entre
   as rodadas). Cada rodada tem duas fases: **compra** e **venda**.
 
 **Compra** 🛒
 - Sorteia-se um **ano** e um **gênero** (cada gênero só nas décadas em que faz
-  sentido); aparecem os **20 mais conhecidos** daquele recorte.
+  sentido); aparecem os **20 mais conhecidos** daquele recorte. O mesmo par
+  **gênero+ano nunca sai duas vezes** na mesma partida.
 - Cada disco tem uma **avaliação (★) OCULTA**. O **preço** é avaliação × 10 com
   **±25%** — então o preço é só uma pista ruidosa: aparecem gemas baratas.
 - Escolha uma capa e clique **COMPRAR** — ele leva o disco e já abre o próximo
-  engradado. Você tem **3 trocas de ano** e **3 trocas de gênero** por rodada.
+  engradado. Você pode **trocar o ano** e **trocar o gênero** 1 vez cada por rodada.
 - Encerre as compras quando quiser (alvo: **4+ discos**, teto **10**).
 
 **Venda** 🏷️
@@ -97,11 +98,13 @@ objetivo é montar o melhor **acervo de 5 discos**: ao fim das 5 rodadas, a
 - **Multiplayer — batalha** ⚔️: você ordena os discos do **pior → melhor**
   (palpite) e a venda é **rei-do-morro** pela avaliação; cada **vitória** aumenta
   a revenda, quem não vence dá **prejuízo**.
-- **Sozinho — mercado** 🎧: cada disco é vendido pelo **valor real** (avaliação ×
-  10). Pechinchou? **lucro**. Pagou caro? **prejuízo**.
+- **Sozinho — mercado** 🎧: o disco vale **avaliação² × (10/6)** — um clássico
+  rende muito, um disco fraco encalha barato. Achou um clássico subvalorizado?
+  **lucro alto**. Pagou caro num disco mediano? **prejuízo de verdade**.
 
 **Acervo e fim** 🏆
-- Você pode **guardar até 5 discos** na loja, acumulando entre as rodadas.
+- Você pode **guardar até 5 discos** na loja, acumulando entre as rodadas, e
+  pode **remover** um guardado (botão ✕) para abrir vaga.
 - **Multiplayer:** vence a loja com o **melhor acervo** (maior soma das avaliações
   guardadas; desempate pelo dinheiro).
 - **Sozinho:** a **média dos 5 melhores** guardados é o seu **high score**.

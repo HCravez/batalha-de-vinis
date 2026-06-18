@@ -222,6 +222,17 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on('removerDaLoja', ({ index } = {}) => {
+    const sala = salas.get(socket.data.code);
+    if (!sala) return;
+    const r = R.removerDaLoja(sala, socket.data.playerId, index);
+    if (r.erro) {
+      socket.emit('avisoSala', r.erro);
+      return;
+    }
+    enviarEstado(socket.data.code);
+  });
+
   socket.on('encerrarCompras', () => {
     const code = socket.data.code;
     const sala = salas.get(code);

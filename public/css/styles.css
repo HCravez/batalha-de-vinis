@@ -905,3 +905,18 @@ h1, h2, h3 { font-family: var(--fonte-titulo); font-weight: 400; letter-spacing:
 .solo-score__rec { font-family: var(--fonte-mao); font-size: 1.35rem; color: var(--smoke); }
 .solo-score__rec.novo { color: var(--ok); }
 .solo-score__grana { color: var(--gold); font-family: var(--fonte-titulo); }
+
+/* Botão de remover disco da loja */
+.acervo-slot { position: relative; }
+.acervo-remover {
+  position: absolute; top: -8px; right: -8px; z-index: 6;
+  width: 26px; height: 26px; border-radius: 50%; padding: 0;
+  background: var(--pink); color: #fff; border: 2px solid #120b0d;
+  font-family: var(--fonte-texto); font-weight: 700; font-size: .9rem; line-height: 1;
+  cursor: pointer; box-shadow: 2px 2px 0 rgba(0,0,0,.35);
+  display: grid; place-content: center;
+  transition: transform .08s ease, background .12s ease;
+}
+.acervo-remover:hover { background: var(--pink-d); transform: scale(1.1); }
+.acervo-remover:active { transform: scale(.94); }
+.acervo-remover:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
