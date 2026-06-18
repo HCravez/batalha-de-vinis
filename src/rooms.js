@@ -48,6 +48,7 @@ function novoJogador(playerId, socketId, nome) {
     // compra (rodada atual)
     engradado: null,      // { ano, genero, generoTag, albuns[], offline }
     carregando: false,
+    semDados: false,      // não conseguiu dados reais (sem internet + cache vazio)
     _sorteioPendente: null,
     combosVistos: new Set(), // 'tag|ano' já sorteados nesta partida (não repete)
     rerollAnoRestante: G.REROLL_ANO,
@@ -145,6 +146,7 @@ function comecarCompra(sala) {
   for (const j of sala.jogadores) {
     j.engradado = null;
     j.carregando = false; // o server dispara o 1º sorteio logo em seguida
+    j.semDados = false;
     j._sorteioPendente = null;
     j.rerollAnoRestante = G.REROLL_ANO;
     j.rerollGeneroRestante = G.REROLL_GENERO;
@@ -163,12 +165,32 @@ function escolherUm(arr) {
   return arr[G.aleatorioInt(0, arr.length - 1)];
 }
 
-// Anos de um gênero que ainda não saíram (e ≠ ano atual). Fallback: todos.
-function anosLivres(genero, seen, exAno) {
-  const livres = G.anosDoGenero(genero).filter(
-    (a) => a !== exAno && !seen.has(genero.tag + '|' + a)
-  );
-  return livres.length ? livres : G.anosDoGenero(genero).filter((a) => a !== exAno);
+// Escolhe um par {gênero, ano} inédito respeitando as restrições, PREFERINDO os
+// que já estão no dataset (cache) — assim a maioria dos sorteios é instantânea.
+//   restr.fixarGeneroTag  → só esse gênero (troca de ano)
+//   restr.excluirGeneroTag → qualquer gênero menos esse (troca de gênero)
+//   restr.exAno           → evita esse ano
+function escolherCombo(seen, restr) {
+  restr = restr || {};
+  let generos;
+  if (restr.fixarGeneroTag) {
+    const g = G.acharGenero(restr.fixarGeneroTag);
+    generos = g ? [g] : G.GENEROS.slice();
+  } else {
+    generos = G.GENEROS.filter((g) => g.tag !== restr.excluirGeneroTag);
+  }
+  const todos = [];
+  for (const g of generos) {
+    for (const ano of G.anosDoGenero(g)) {
+      if (ano === restr.exAno) continue;
+      if (seen.has(g.tag + '|' + ano)) continue;
+      todos.push({ generoTag: g.tag, generoLabel: g.label, ano });
+    }
+  }
+  if (!todos.length) return null;
+  const emCache = todos.filter((c) => MB.temNoCache(c.generoTag, c.ano));
+  const pool = emCache.length ? emCache : todos;
+  return pool[G.aleatorioInt(0, pool.length - 1)];
 }
 
 function prepararSorteio(sala, playerId, tipo) {
@@ -182,74 +204,79 @@ function prepararSorteio(sala, playerId, tipo) {
   }
 
   const atual = j.engradado;
-  const seen = j.combosVistos;
-  let genero, ano;
-
+  let restr;
   if (tipo === 'ano') {
     if (!atual) return { erro: 'Abra um engradado primeiro.' };
     if (j.rerollAnoRestante <= 0) return { erro: 'Você já trocou o ano nesta rodada.' };
-    genero = G.acharGenero(atual.generoTag) || G.generoAleatorio(null);
-    ano = escolherUm(anosLivres(genero, seen, atual.ano));
-    j.rerollAnoRestante -= 1;
+    restr = { fixarGeneroTag: atual.generoTag, exAno: atual.ano };
+  } else if (tipo === 'genero') {
+    if (!atual) return { erro: 'Abra um engradado primeiro.' };
+    if (j.rerollGeneroRestante <= 0) return { erro: 'Você já trocou o gênero nesta rodada.' };
+    restr = { excluirGeneroTag: atual.generoTag };
   } else {
-    // 'genero' e 'novo': escolhe um gênero que ainda tenha ano inédito.
-    const exTag = tipo === 'genero' && atual ? atual.generoTag : null;
-    if (tipo === 'genero') {
-      if (!atual) return { erro: 'Abra um engradado primeiro.' };
-      if (j.rerollGeneroRestante <= 0) return { erro: 'Você já trocou o gênero nesta rodada.' };
-      j.rerollGeneroRestante -= 1;
-    } else {
-      tipo = 'novo';
-    }
-    const opcoes = G.GENEROS
-      .filter((g) => !exTag || g.tag !== exTag)
-      .map((g) => ({ g, anos: G.anosDoGenero(g).filter((a) => !seen.has(g.tag + '|' + a)) }));
-    const comLivre = opcoes.filter((o) => o.anos.length);
-    const escolhido = comLivre.length ? escolherUm(comLivre) : escolherUm(opcoes);
-    genero = escolhido.g;
-    ano = escolherUm(escolhido.anos.length ? escolhido.anos : G.anosDoGenero(genero));
+    tipo = 'novo';
+    restr = {};
   }
 
+  const combo = escolherCombo(j.combosVistos, restr);
+  if (!combo) return { erro: 'Acabaram as combinações novas nesta partida.' };
+
+  if (tipo === 'ano') j.rerollAnoRestante -= 1;
+  if (tipo === 'genero') j.rerollGeneroRestante -= 1;
+
   j.carregando = true;
-  j._sorteioPendente = { tipo, genero: { tag: genero.tag, label: genero.label }, ano };
+  j.semDados = false;
+  j._sorteioPendente = {
+    tipo, restr,
+    genero: { tag: combo.generoTag, label: combo.generoLabel },
+    ano: combo.ano,
+  };
   return { ok: true };
 }
 
+// Busca o engradado. GARANTIA: nunca mostra álbum fake — se uma combinação
+// falhar (503/sem dados), tenta OUTRA inédita (preferindo o dataset em cache)
+// até vir álbum real. Só desiste (semDados) se nada real for possível.
 async function executarSorteio(sala, playerId) {
   const j = acharJogador(sala, playerId);
   if (!j || !j._sorteioPendente) return { erro: 'Nada para sortear.' };
   const ped = j._sorteioPendente;
 
-  let res = await MB.buscarEngradado(ped.genero.tag, ped.genero.label, ped.ano);
+  let combo = { generoTag: ped.genero.tag, generoLabel: ped.genero.label, ano: ped.ano };
+  let res = null;
 
-  // Engradado magro: tenta de novo variando a dimensão livre (sem repetir combos).
-  let tentativas = 0;
-  while (!res.offline && res.albuns.length < MB.MIN_ALBUNS && tentativas < 4) {
-    let genero, ano, t2 = 0;
-    do {
-      genero = ped.tipo === 'novo'
-        ? G.generoAleatorio(null)
-        : (G.acharGenero(ped.genero.tag) || G.generoAleatorio(null));
-      ano = G.anoDoGenero(genero, ped.ano);
-      t2++;
-    } while (j.combosVistos.has(genero.tag + '|' + ano) && t2 < 40);
-    res = await MB.buscarEngradado(genero.tag, genero.label, ano);
-    ped.genero = { tag: genero.tag, label: genero.label };
-    ped.ano = ano;
-    tentativas++;
+  for (let tent = 0; tent < 10 && combo; tent++) {
+    j.combosVistos.add(combo.generoTag + '|' + combo.ano); // tentado: não repete
+    const r = await MB.buscarEngradado(combo.generoTag, combo.generoLabel, combo.ano);
+    if (!j._sorteioPendente) return { ok: true }; // estado mudou no meio
+    if (!r.offline && r.albuns.length >= MB.MIN_ALBUNS) { res = r; break; }
+    // falhou → outra combinação inédita (preferindo cache)
+    combo = escolherCombo(j.combosVistos, ped.restr);
+    if (combo) {
+      j._sorteioPendente.genero = { tag: combo.generoTag, label: combo.generoLabel };
+      j._sorteioPendente.ano = combo.ano;
+    }
   }
 
-  if (!j._sorteioPendente) return { ok: true }; // estado mudou no meio
+  if (!j._sorteioPendente) return { ok: true };
+
+  if (!res) {
+    // Não foi possível obter nada real (ex.: sem internet e cache vazio).
+    j.carregando = false;
+    j.semDados = true;
+    j._sorteioPendente = null;
+    return { erro: 'sem dados reais' };
+  }
 
   j.engradado = {
     ano: res.ano,
     genero: res.genero,
     generoTag: res.generoTag,
     albuns: res.albuns.map((a) => ({ ...a })),
-    offline: res.offline,
+    offline: false,
   };
-  j.combosVistos.add(res.generoTag + '|' + res.ano); // não sorteia de novo
   j.carregando = false;
+  j.semDados = false;
   j._sorteioPendente = null;
   return { ok: true };
 }
@@ -567,6 +594,7 @@ function visao(sala, playerId) {
       pronto: eu.pronto,
       dinheiro: eu.dinheiro,
       carregando: eu.carregando,
+      semDados: eu.semDados,
       sorteando: eu.carregando && eu._sorteioPendente
         ? { genero: eu._sorteioPendente.genero.label, ano: eu._sorteioPendente.ano }
         : null,

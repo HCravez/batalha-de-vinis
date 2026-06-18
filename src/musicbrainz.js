@@ -202,14 +202,17 @@ function montarEngradado(dados, generoLabel, ano) {
   const albuns = dados.itens
     .slice(0, G.ALBUNS_POR_ENGRADADO)
     .map((it) => G.montarAlbum(it.mbid, it.album, it.artista, generoLabel, ano, it.users, it.listens));
-  return { ano, genero: generoLabel, generoTag: dados.tag, albuns, offline: false };
+  return { ano, genero: generoLabel, generoTag: dados.tag, albuns, offline: false, completo: dados.completo !== false };
 }
 
-function fallback(generoLabel, generoTag, ano, erro) {
-  return {
-    ano, genero: generoLabel, generoTag,
-    albuns: G.engradadoFallback(generoLabel, ano), offline: true, erro,
-  };
+// Falha = SEM álbuns (nunca fictícios). Quem chama trata como "tente outra".
+function falha(generoLabel, generoTag, ano, erro) {
+  return { ano, genero: generoLabel, generoTag, albuns: [], offline: true, erro };
+}
+
+// Já existe dataset (cache) para esta combinação? (memória ou disco)
+function temNoCache(generoTag, ano) {
+  return memCache.has(generoTag + '|' + ano) || fs.existsSync(arquivoCache(generoTag, ano));
 }
 
 // Busca o engradado de um par gênero+ano (memória → disco → fetch profundo).
@@ -231,13 +234,17 @@ async function buscarEngradado(generoTag, generoLabel, ano, prioridade) {
     try {
       const dados = await fetchProfundo(generoTag, ano, prioridade == null ? 1 : prioridade);
       if (dados.itens.length >= MIN_ALBUNS) {
-        memCache.set(chave, dados);
-        if (dados.completo) gravarDisco(generoTag, ano, dados); // só persiste se completo
+        // Só guarda no dataset (memória + disco) se a paginação foi COMPLETA —
+        // um resultado parcial é mostrado, mas refeito depois para completar.
+        if (dados.completo) {
+          memCache.set(chave, dados);
+          gravarDisco(generoTag, ano, dados);
+        }
         return montarEngradado(dados, generoLabel, ano);
       }
-      return fallback(generoLabel, generoTag, ano, 'poucos discos reais');
+      return falha(generoLabel, generoTag, ano, 'poucos discos reais');
     } catch (e) {
-      return fallback(generoLabel, generoTag, ano, String((e && e.message) || e));
+      return falha(generoLabel, generoTag, ano, String((e && e.message) || e));
     } finally {
       pending.delete(chave);
     }
@@ -263,4 +270,4 @@ async function aquecerEmFundo(combos) {
   aquecendo = false;
 }
 
-module.exports = { buscarEngradado, aquecerEmFundo, MIN_ALBUNS };
+module.exports = { buscarEngradado, aquecerEmFundo, temNoCache, MIN_ALBUNS };

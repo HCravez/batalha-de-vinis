@@ -27,8 +27,13 @@ na memória do servidor, e os engradados de discos ficam em cache.
 > Três formas de matar a espera: (1) o servidor tem um **aquecedor em segundo
 > plano** que vai preenchendo o cache nos tempos ociosos, com prioridade menor
 > que o jogo (desligue com `BDV_NO_WARM=1`); (2) rode **`npm run prewarm`** uma
-> vez para preencher tudo de antemão (resumível); (3) como o cache é só
-> arquivos, dá para **versioná-lo/compartilhá-lo** e o jogo já abre instantâneo.
+> vez para preencher tudo de antemão (resumível e paciente — refaz o que o
+> MusicBrainz recusar); (3) como o cache é só arquivos, dá para
+> **versioná-lo/compartilhá-lo** e o jogo já abre instantâneo.
+>
+> **Garantia:** o jogo **nunca** mostra álbuns fictícios. Os sorteios preferem as
+> combinações já no dataset (instantâneas); se uma busca ao vivo falhar, ele
+> sorteia **outra** combinação até vir álbum real — em vez de inventar discos.
 
 ---
 

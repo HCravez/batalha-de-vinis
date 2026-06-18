@@ -145,39 +145,9 @@ function montarAlbum(mbid, album, artista, generoLabel, ano, usuarios, execucoes
   };
 }
 
-// ── Engradado de reserva (offline) ──────────────────────────────────────────
-const PALAVRAS_A = ['Trovão', 'Néon', 'Asfalto', 'Eclipse', 'Veludo', 'Fumaça', 'Maré', 'Pulso',
-  'Cinzas', 'Aurora', 'Concreto', 'Sereno', 'Vertigem', 'Lanterna', 'Câmbio', 'Estática'];
-const PALAVRAS_B = ['de Cobre', 'Particular', 'sem Saída', 'da Madrugada', 'Mecânica', 'Sintética',
-  'em Lá Menor', 'Infinito', 'de Vitrine', 'Distante', 'do Subsolo', 'Provisório', 'de Carbono'];
-const ARTISTAS_F = ['Os Cometas', 'Trio Penumbra', 'Lobo de Neon', 'Clube Veludo', 'Módulo Lunar',
-  'Banda Estilhaço', 'Coral Aurora', 'Vetor & Vértice', 'As Hienas', 'Caravana Selvagem'];
-
-function engradadoFallback(generoLabel, ano) {
-  const out = [];
-  for (let i = 0; i < ALBUNS_POR_ENGRADADO; i++) {
-    const semente = `${generoLabel}-${ano}-${i}`;
-    const a = PALAVRAS_A[Math.floor(frac(semente, 'a') * PALAVRAS_A.length)];
-    const b = PALAVRAS_B[Math.floor(frac(semente, 'b') * PALAVRAS_B.length)];
-    const art = ARTISTAS_F[Math.floor(frac(semente, 'r') * ARTISTAS_F.length)];
-    // avaliação fictícia determinística (sem audiência real disponível)
-    const av = round1(clamp(2.6 + frac(semente, 'v') * 7, 1.5, 10));
-    const alb = {
-      mbid: `offline-${semente}`,
-      album: `${a} ${b}`,
-      artista: art,
-      genero: generoLabel,
-      ano,
-      capaUrl: null,
-      avaliacao: av,
-      valor: Math.max(5, Math.round(av * 10 * (0.75 + frac(semente, 'p') * 0.5))),
-      usuarios: 0,
-      execucoes: 0,
-    };
-    out.push(alb);
-  }
-  return out;
-}
+// Não existe mais "engradado fictício": o jogo NUNCA mostra álbuns fake. Quando
+// uma combinação não tem dados reais, o jogo sorteia outra (preferindo as que já
+// estão no dataset em cache). Ver src/musicbrainz.js e src/rooms.js.
 
 module.exports = {
   ANO_MIN,
@@ -202,5 +172,4 @@ module.exports = {
   avaliacaoDe,
   precoDe,
   montarAlbum,
-  engradadoFallback,
 };

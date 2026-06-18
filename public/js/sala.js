@@ -343,6 +343,15 @@
       return;
     }
     if (!eu.engradado) {
+      if (eu.semDados) {
+        area.innerHTML =
+          '<div class="engradado-cartaz"><span class="engradado-cartaz__faixa">ops…</span>' +
+          '<h2 class="engradado-cartaz__titulo">Sem conexão com o acervo</h2></div>' +
+          '<div class="garimpo"><p class="esperando">Não consegui carregar discos reais agora (sem internet?). Nenhum álbum fictício é mostrado.</p>' +
+          '<button id="btn-retry" class="btn btn--rosa">Tentar de novo</button></div>';
+        var br = $('#btn-retry'); if (br) br.onclick = function () { sortear('novo'); };
+        return;
+      }
       if ((eu.comprados || []).length >= eu.compraMax) {
         area.innerHTML =
           '<div class="engradado-cartaz"><span class="engradado-cartaz__faixa">caixa cheia</span>' +
@@ -364,9 +373,7 @@
       '<div class="engradado-cartaz" style="--g:' + corG + '">' +
         '<span class="engradado-cartaz__faixa">os 20 mais conhecidos</span>' +
         '<h2 class="engradado-cartaz__titulo">' + esc(eng.genero) + ' · ' + esc(eng.ano) + '</h2>' +
-        '<div class="engradado-cartaz__sub">' +
-          (eng.offline ? 'acervo offline (sem internet)' : 'álbuns reais · a avaliação está oculta — só o preço dá pista') +
-        '</div></div>';
+        '<div class="engradado-cartaz__sub">álbuns reais · a avaliação está oculta — só o preço dá pista</div></div>';
 
     var controles =
       '<div class="engradado-controles">' +
