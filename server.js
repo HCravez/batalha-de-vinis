@@ -305,4 +305,18 @@ io.on('connection', (socket) => {
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, '0.0.0.0', () => {
     console.log(`Servidor a rodar na porta ${PORT}`);
+
+    // Aquecedor de cache em segundo plano: preenche as combinações gênero+ano
+    // que ainda faltam, com prioridade menor que o jogo (não atrapalha quem
+    // está jogando). Assim a espera da "1ª vez" vai sumindo sozinha.
+    // Desligue com BDV_NO_WARM=1 (ou rode `npm run prewarm` à parte).
+    if (!process.env.BDV_NO_WARM) {
+      const G = require('./src/gameData');
+      const MB = require('./src/musicbrainz');
+      const combos = [];
+      for (const g of G.GENEROS) {
+        for (const ano of G.anosDoGenero(g)) combos.push({ tag: g.tag, label: g.label, ano });
+      }
+      setTimeout(() => MB.aquecerEmFundo(combos), 8000); // deixa o boot respirar
+    }
 });

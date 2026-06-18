@@ -422,7 +422,7 @@
       '<h2 class="engradado-cartaz__titulo">' + titulo + '</h2></div>' +
       '<div class="garimpo"><div class="garimpo__disco"></div>' +
       '<p class="esperando">Ranqueando por audiência real (ListenBrainz)…</p>' +
-      '<p class="dica">A 1ª vez de cada gênero+ano pode levar até ~1 min; depois fica instantâneo (salvo em cache).</p>' +
+      '<p class="dica">Só na 1ª vez de cada gênero+ano. O servidor vai pré-carregando os outros em segundo plano, então logo fica tudo instantâneo.</p>' +
       '</div>';
   }
 

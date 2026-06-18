@@ -22,9 +22,13 @@ na memória do servidor, e os engradados de discos ficam em cache.
 > discos do gênero+ano no MusicBrainz e os ordena pela audiência real (os
 > famosos ficam espalhados, não nas primeiras páginas). Isso leva **~5–40s na
 > 1ª vez de cada combinação** e depois fica **em cache no disco** (`.cache/`),
-> instantâneo para sempre. Rode **`npm run prewarm`** uma vez para preencher
-> tudo de antemão (demora, mas é só uma vez; é resumível). Evite rodar o
-> `prewarm` e o jogo ao mesmo tempo — os dois batem no MusicBrainz.
+> instantâneo para sempre — esse cache de JSON é o "banco de dados" do jogo.
+>
+> Três formas de matar a espera: (1) o servidor tem um **aquecedor em segundo
+> plano** que vai preenchendo o cache nos tempos ociosos, com prioridade menor
+> que o jogo (desligue com `BDV_NO_WARM=1`); (2) rode **`npm run prewarm`** uma
+> vez para preencher tudo de antemão (resumível); (3) como o cache é só
+> arquivos, dá para **versioná-lo/compartilhá-lo** e o jogo já abre instantâneo.
 
 ---
 
