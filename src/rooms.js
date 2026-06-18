@@ -1,14 +1,16 @@
 // ───────────────────────────────────────────────────────────────────────────
 //  BATALHA DE VINIS — salas e regras
-//  Lógica pura/estado do jogo. O server.js cuida dos sockets, dos timers e do
-//  envio individualizado (cada lojista só vê a própria caixa e suas notas; a
-//  nota da crítica só viaja revelada na batalha e no fim).
+//  Lógica/estado do jogo. O server.js cuida dos sockets, timers e do envio
+//  individualizado. A **avaliação** de cada disco (0–10) fica OCULTA na compra
+//  e só viaja revelada na batalha e no fim.
 //
-//  Fluxo de cada uma das 5 rodadas:
-//    COMPRA  → cada lojista garimpa engradados (ano+gênero) e compra discos.
-//    VENDA   → separa o que vai à batalha e o que guardar; ordena pior→melhor.
-//    BATALHA → rei-do-morro pela nota da crítica (oculta), revela e paga.
-//  No fim, vence o melhor ACERVO guardado (soma das notas da crítica).
+//  Cada uma das 5 rodadas:
+//    COMPRA  → garimpa engradados (20 mais conhecidos do gênero+ano) e compra.
+//              Botão COMPRAR leva o disco e já abre o próximo engradado.
+//              3 trocas de ano + 3 trocas de gênero por jogador, por rodada.
+//    VENDA   → separa batalha × guardar (loja, até 5) e ordena pior→melhor.
+//    BATALHA → rei-do-morro pela avaliação (revelada); mostra lucro/prejuízo.
+//  No fim, vence o melhor ACERVO guardado (soma das avaliações).
 // ───────────────────────────────────────────────────────────────────────────
 
 const G = require('./gameData');
@@ -43,17 +45,19 @@ function novoJogador(playerId, socketId, nome) {
     pronto: false,
     dinheiro: G.DINHEIRO_INICIAL,
     // compra (rodada atual)
-    engradado: null,      // { ano, genero, generoTag, albuns[], comprado, rerollAno, rerollGenero, offline }
-    carregando: false,    // buscando engradado no MusicBrainz
+    engradado: null,      // { ano, genero, generoTag, albuns[], offline }
+    carregando: false,
     _sorteioPendente: null,
-    comprados: [],        // discos comprados nesta rodada (com uid)
+    rerollAnoRestante: G.REROLL_ANO,
+    rerollGeneroRestante: G.REROLL_GENERO,
+    comprados: [],        // discos comprados nesta rodada (com uid + pago)
     compraEncerrada: false,
     // venda (rodada atual)
     venda: null,          // { batalha:[uid...], guardar:[uid...] }
     vendaConfirmada: false,
     // acervo permanente
     loja: [],             // até LOJA_MAX discos guardados
-    ultimaBatalha: null,  // resultado da última batalha (para reconexão)
+    ultimaBatalha: null,
   };
 }
 
@@ -116,13 +120,14 @@ function iniciar(sala) {
   return { ok: true };
 }
 
-// Prepara a fase de compra de uma rodada (zera o que é por rodada).
 function comecarCompra(sala) {
   sala.fase = 'compra';
   for (const j of sala.jogadores) {
     j.engradado = null;
     j.carregando = false; // o server dispara o 1º sorteio logo em seguida
     j._sorteioPendente = null;
+    j.rerollAnoRestante = G.REROLL_ANO;
+    j.rerollGeneroRestante = G.REROLL_GENERO;
     j.comprados = [];
     j.compraEncerrada = false;
     j.venda = null;
@@ -131,66 +136,44 @@ function comecarCompra(sala) {
   }
 }
 
-// ── Sorteio de engradado (ano + gênero) ─────────────────────────────────────
-function generoAleatorio(exceto) {
-  let g;
-  do {
-    g = G.GENEROS[G.aleatorioInt(0, G.GENEROS.length - 1)];
-  } while (exceto && g.tag === exceto && G.GENEROS.length > 1);
-  return g;
-}
-function anoAleatorio(exceto) {
-  let a;
-  do {
-    a = G.aleatorioInt(G.ANO_MIN, G.ANO_MAX);
-  } while (exceto && a === exceto);
-  return a;
-}
-
-// Parte SÍNCRONA: valida o pedido e decide ano/gênero. O server emite o estado
-// (mostrando "carregando") e em seguida chama executarSorteio (assíncrono).
-//   tipo: 'novo' (ano+gênero novos) | 'ano' (troca só o ano) | 'genero' (só o gênero)
+// ── Sorteio de engradado ─────────────────────────────────────────────────────
+//   tipo: 'novo' (gênero+ano novos) | 'ano' (troca o ano) | 'genero' (troca o gênero)
 function prepararSorteio(sala, playerId, tipo) {
   if (sala.fase !== 'compra') return { erro: 'Não dá para garimpar agora.' };
   const j = acharJogador(sala, playerId);
   if (!j) return { erro: 'Jogador não encontrado.' };
   if (j.compraEncerrada) return { erro: 'Você já encerrou as compras.' };
   if (j.carregando) return { erro: 'Calma, ainda estou garimpando…' };
+  if (j.comprados.length >= G.COMPRA_MAX && tipo !== 'novo') {
+    return { erro: `Caixa cheia: no máximo ${G.COMPRA_MAX} discos por rodada.` };
+  }
 
   const atual = j.engradado;
-  let ano, genero;
+  let genero, ano;
 
   if (tipo === 'ano') {
     if (!atual) return { erro: 'Abra um engradado primeiro.' };
-    if (atual.rerollAno) return { erro: 'Você já trocou o ano deste engradado.' };
-    if (atual.comprado) return { erro: 'Engradado já usado — puxe o próximo.' };
-    genero = { tag: atual.generoTag, label: atual.genero };
-    ano = anoAleatorio(atual.ano);
+    if (j.rerollAnoRestante <= 0) return { erro: 'Acabaram suas trocas de ano nesta rodada.' };
+    genero = G.acharGenero(atual.generoTag) || G.generoAleatorio(null);
+    ano = G.anoDoGenero(genero, atual.ano);
+    j.rerollAnoRestante -= 1;
   } else if (tipo === 'genero') {
     if (!atual) return { erro: 'Abra um engradado primeiro.' };
-    if (atual.rerollGenero) return { erro: 'Você já trocou o gênero deste engradado.' };
-    if (atual.comprado) return { erro: 'Engradado já usado — puxe o próximo.' };
-    genero = generoAleatorio(atual.generoTag);
-    ano = atual.ano;
+    if (j.rerollGeneroRestante <= 0) return { erro: 'Acabaram suas trocas de gênero nesta rodada.' };
+    genero = G.generoAleatorio(atual.generoTag);
+    ano = G.anoDoGenero(genero, null);
+    j.rerollGeneroRestante -= 1;
   } else {
     tipo = 'novo';
-    genero = generoAleatorio(null);
-    ano = anoAleatorio(null);
+    genero = G.generoAleatorio(null);
+    ano = G.anoDoGenero(genero, null);
   }
 
   j.carregando = true;
-  j._sorteioPendente = {
-    tipo,
-    ano,
-    genero,
-    rerollAno: atual && tipo !== 'novo' ? atual.rerollAno || tipo === 'ano' : tipo === 'ano',
-    rerollGenero: atual && tipo !== 'novo' ? atual.rerollGenero || tipo === 'genero' : tipo === 'genero',
-  };
+  j._sorteioPendente = { tipo, genero: { tag: genero.tag, label: genero.label }, ano };
   return { ok: true };
 }
 
-// Parte ASSÍNCRONA: busca no MusicBrainz (com algumas tentativas para não cair
-// num par "magro" demais) e fixa o engradado do lojista.
 async function executarSorteio(sala, playerId) {
   const j = acharJogador(sala, playerId);
   if (!j || !j._sorteioPendente) return { erro: 'Nada para sortear.' };
@@ -198,29 +181,26 @@ async function executarSorteio(sala, playerId) {
 
   let res = await MB.buscarEngradado(ped.genero.tag, ped.genero.label, ped.ano);
 
-  // Engradado magro: para 'novo', tenta outros pares antes de desistir.
-  if (ped.tipo === 'novo') {
-    let tentativas = 0;
-    while (!res.offline && res.albuns.length < MB.MIN_ALBUNS && tentativas < 4) {
-      const g = generoAleatorio(null);
-      const a = anoAleatorio(null);
-      res = await MB.buscarEngradado(g.tag, g.label, a);
-      ped.genero = g;
-      ped.ano = a;
-      tentativas++;
-    }
+  // Engradado magro: tenta de novo variando a dimensão livre.
+  let tentativas = 0;
+  while (!res.offline && res.albuns.length < MB.MIN_ALBUNS && tentativas < 4) {
+    let genero = G.acharGenero(ped.genero.tag);
+    if (ped.tipo === 'genero' || !genero) genero = G.generoAleatorio(ped.genero.tag);
+    if (ped.tipo === 'novo') genero = G.generoAleatorio(null);
+    const ano = G.anoDoGenero(genero, ped.ano);
+    res = await MB.buscarEngradado(genero.tag, genero.label, ano);
+    ped.genero = { tag: genero.tag, label: genero.label };
+    ped.ano = ano;
+    tentativas++;
   }
 
-  if (!j._sorteioPendente) return { ok: true }; // estado mudou no meio (ex.: reinício)
+  if (!j._sorteioPendente) return { ok: true }; // estado mudou no meio
 
   j.engradado = {
     ano: res.ano,
     genero: res.genero,
     generoTag: res.generoTag,
     albuns: res.albuns.map((a) => ({ ...a })),
-    comprado: false,
-    rerollAno: ped.rerollAno,
-    rerollGenero: ped.rerollGenero,
     offline: res.offline,
   };
   j.carregando = false;
@@ -229,26 +209,25 @@ async function executarSorteio(sala, playerId) {
 }
 
 // ── Compra ──────────────────────────────────────────────────────────────────
+// COMPRAR leva o disco escolhido e ESVAZIA o engradado (1 por engradado); o
+// server abre o próximo logo em seguida.
 function comprar(sala, playerId, mbid) {
   if (sala.fase !== 'compra') return { erro: 'Não dá para comprar agora.' };
   const j = acharJogador(sala, playerId);
   if (!j) return { erro: 'Jogador não encontrado.' };
   if (j.compraEncerrada) return { erro: 'Você já encerrou as compras.' };
-  const eng = j.engradado;
-  if (!eng) return { erro: 'Nenhum engradado aberto.' };
-  if (eng.comprado) return { erro: 'Você já comprou neste engradado — puxe o próximo.' };
+  if (j.carregando || !j.engradado) return { erro: 'Espere o engradado abrir.' };
   if (j.comprados.length >= G.COMPRA_MAX) {
     return { erro: `Caixa cheia: no máximo ${G.COMPRA_MAX} discos por rodada.` };
   }
-  const alvo = eng.albuns.find((a) => a.mbid === mbid);
+  const alvo = j.engradado.albuns.find((a) => a.mbid === mbid);
   if (!alvo) return { erro: 'Esse disco não está no engradado.' };
   if (alvo.valor > j.dinheiro) return { erro: 'Dinheiro insuficiente para esse disco.' };
 
   j.dinheiro -= alvo.valor;
-  const disco = { ...alvo, uid: `${sala.code}-${sala._uid++}`, pago: alvo.valor };
-  j.comprados.push(disco);
-  eng.comprado = true; // 1 compra por engradado
-  return { ok: true, disco };
+  j.comprados.push({ ...alvo, uid: `${sala.code}-${sala._uid++}`, pago: alvo.valor });
+  j.engradado = null; // engradado gasto — server abre o próximo
+  return { ok: true, podeMais: j.comprados.length < G.COMPRA_MAX };
 }
 
 function encerrarCompras(sala, playerId) {
@@ -266,7 +245,6 @@ function todosEncerraramCompra(sala) {
   return conectados.length > 0 && conectados.every((j) => j.compraEncerrada);
 }
 
-// Quem caiu no meio da compra entra na venda com o que já tinha.
 function forcarEncerrarDesconectados(sala) {
   for (const j of sala.jogadores) {
     if (!j.conectado) {
@@ -276,15 +254,14 @@ function forcarEncerrarDesconectados(sala) {
   }
 }
 
-// ── Venda (separar batalha × guardar, ordenar) ──────────────────────────────
+// ── Venda ────────────────────────────────────────────────────────────────────
 function comecarVenda(sala) {
   sala.fase = 'venda';
   for (const j of sala.jogadores) {
     j.vendaConfirmada = false;
-    // pré-arranjo: tudo na batalha, ordenado pelo preço (palpite inicial)
     const ordem = j.comprados
       .slice()
-      .sort((a, b) => a.valor - b.valor)
+      .sort((a, b) => a.valor - b.valor) // palpite inicial: do mais barato ao mais caro
       .map((d) => d.uid);
     j.venda = { batalha: ordem, guardar: [] };
   }
@@ -296,18 +273,14 @@ function definirVenda(sala, playerId, arranjo) {
   if (!j) return { erro: 'Jogador não encontrado.' };
 
   const validos = new Set(j.comprados.map((d) => d.uid));
-  const batalha = (arranjo && Array.isArray(arranjo.batalha) ? arranjo.batalha : [])
-    .filter((u) => validos.has(u));
-  const guardar = (arranjo && Array.isArray(arranjo.guardar) ? arranjo.guardar : [])
-    .filter((u) => validos.has(u));
+  const batalha = (arranjo && Array.isArray(arranjo.batalha) ? arranjo.batalha : []).filter((u) => validos.has(u));
+  const guardar = (arranjo && Array.isArray(arranjo.guardar) ? arranjo.guardar : []).filter((u) => validos.has(u));
 
-  // cada disco em exatamente um dos dois grupos
   const usados = new Set();
   const batClean = [];
-  for (const u of batalha) { if (!usados.has(u)) { usados.add(u); batClean.push(u); } }
+  for (const u of batalha) if (!usados.has(u)) { usados.add(u); batClean.push(u); }
   const guaClean = [];
-  for (const u of guardar) { if (!usados.has(u)) { usados.add(u); guaClean.push(u); } }
-  // discos não citados vão para a batalha por padrão
+  for (const u of guardar) if (!usados.has(u)) { usados.add(u); guaClean.push(u); }
   for (const d of j.comprados) if (!usados.has(d.uid)) batClean.push(d.uid);
 
   const vagas = G.LOJA_MAX - j.loja.length;
@@ -322,8 +295,7 @@ function definirVenda(sala, playerId, arranjo) {
 function confirmarVenda(sala, playerId, arranjo) {
   const r = definirVenda(sala, playerId, arranjo);
   if (r.erro) return r;
-  const j = acharJogador(sala, playerId);
-  j.vendaConfirmada = true;
+  acharJogador(sala, playerId).vendaConfirmada = true;
   return { ok: true };
 }
 
@@ -341,28 +313,21 @@ function autoConfirmarDesconectados(sala) {
   }
 }
 
-// ── Batalha (rei-do-morro pela nota da crítica) ─────────────────────────────
-// Os discos entram na ordem definida (pior→melhor, no palpite). O campeão
-// defende; quem tem crítica maior vence a batalha e assume. Cada vitória
-// aumenta o valor de revenda; quem não vence nenhuma dá prejuízo.
+// ── Batalha (rei-do-morro pela avaliação) ────────────────────────────────────
 function resolverBatalhaDeUm(ordem) {
-  if (!ordem.length) return { passos: [], discos: [] };
+  if (!ordem.length) return;
   ordem.forEach((d) => { d.vitorias = 0; });
-  const passos = [];
   let campeao = ordem[0];
   for (let i = 1; i < ordem.length; i++) {
     const desafiante = ordem[i];
-    const desafianteVence = desafiante.critica > campeao.critica;
-    if (desafianteVence) {
+    if (desafiante.avaliacao > campeao.avaliacao) {
       desafiante.vitorias += 1;
-      passos.push({ desafiante: desafiante.uid, campeao: campeao.uid, vencedor: desafiante.uid });
       campeao = desafiante;
     } else {
       campeao.vitorias += 1;
-      passos.push({ desafiante: desafiante.uid, campeao: campeao.uid, vencedor: campeao.uid });
     }
   }
-  return { passos, campeaoFinal: campeao.uid };
+  return campeao.uid;
 }
 
 function precoRevenda(disco) {
@@ -376,33 +341,34 @@ function resolverVendas(sala) {
   for (const j of sala.jogadores) {
     const arr = j.venda || { batalha: j.comprados.map((d) => d.uid), guardar: [] };
     const mapa = new Map(j.comprados.map((d) => [d.uid, d]));
-
     const ordem = arr.batalha.map((u) => mapa.get(u)).filter(Boolean);
     const guardados = arr.guardar.map((u) => mapa.get(u)).filter(Boolean);
 
-    const { passos, campeaoFinal } = resolverBatalhaDeUm(ordem);
+    const campeaoFinal = resolverBatalhaDeUm(ordem);
 
     let ganho = 0;
+    let investido = 0;
     const vendidos = ordem.map((d) => {
       const preco = precoRevenda(d);
       ganho += preco;
+      investido += d.pago;
       return {
         uid: d.uid, mbid: d.mbid, album: d.album, artista: d.artista,
         genero: d.genero, ano: d.ano, capaUrl: d.capaUrl,
-        usuarios: d.usuarios, critica: d.critica, valor: d.valor, pago: d.pago,
-        vitorias: d.vitorias || 0, preco, campeao: d.uid === campeaoFinal,
+        avaliacao: d.avaliacao, valor: d.valor, pago: d.pago,
+        vitorias: d.vitorias || 0, preco, lucro: preco - d.pago,
+        campeao: d.uid === campeaoFinal,
       };
     });
     j.dinheiro += ganho;
 
-    // guarda no acervo (respeitando o teto, por garantia)
     const vagas = G.LOJA_MAX - j.loja.length;
     const guardadosOk = guardados.slice(0, Math.max(0, vagas));
     for (const d of guardadosOk) {
       j.loja.push({
         mbid: d.mbid, album: d.album, artista: d.artista, genero: d.genero,
-        ano: d.ano, capaUrl: d.capaUrl, usuarios: d.usuarios, critica: d.critica,
-        valor: d.valor, rodada: sala.rodada,
+        ano: d.ano, capaUrl: d.capaUrl, avaliacao: d.avaliacao, valor: d.valor,
+        rodada: sala.rodada,
       });
     }
 
@@ -410,13 +376,14 @@ function resolverVendas(sala) {
       playerId: j.id,
       nome: j.nome,
       vendidos,
-      passos,
       campeaoFinal,
       guardados: guardadosOk.map((d) => ({
         mbid: d.mbid, album: d.album, artista: d.artista, genero: d.genero,
-        ano: d.ano, capaUrl: d.capaUrl, usuarios: d.usuarios, critica: d.critica,
+        ano: d.ano, capaUrl: d.capaUrl, avaliacao: d.avaliacao,
       })),
       ganho,
+      investido,
+      lucro: ganho - investido,
       dinheiro: j.dinheiro,
       acervo: pontosAcervo(j),
       lojaTamanho: j.loja.length,
@@ -426,11 +393,7 @@ function resolverVendas(sala) {
   }
 
   sala.fase = 'batalha';
-  const payload = {
-    rodada: sala.rodada,
-    totalRodadas: sala.totalRodadas,
-    jogadores: porJogador,
-  };
+  const payload = { rodada: sala.rodada, totalRodadas: sala.totalRodadas, jogadores: porJogador };
   sala.ultimaRevelacao = payload;
   return payload;
 }
@@ -446,16 +409,11 @@ function proximaRodada(sala) {
 }
 
 function pontosAcervo(j) {
-  // soma das notas da crítica dos discos guardados (até LOJA_MAX).
   return Math.round(
-    j.loja
-      .slice()
-      .sort((a, b) => b.critica - a.critica)
-      .slice(0, G.LOJA_MAX)
-      .reduce((s, d) => s + d.critica, 0) * 10
+    j.loja.slice().sort((a, b) => b.avaliacao - a.avaliacao).slice(0, G.LOJA_MAX)
+      .reduce((s, d) => s + d.avaliacao, 0) * 10
   ) / 10;
 }
-
 function mediaAcervo(j) {
   if (!j.loja.length) return 0;
   return Math.round((pontosAcervo(j) / Math.min(j.loja.length, G.LOJA_MAX)) * 10) / 10;
@@ -470,10 +428,7 @@ function finalizar(sala) {
       dinheiro: j.dinheiro,
       acervo: pontosAcervo(j),
       media: mediaAcervo(j),
-      loja: j.loja
-        .slice()
-        .sort((a, b) => b.critica - a.critica)
-        .map((d) => ({ ...d })),
+      loja: j.loja.slice().sort((a, b) => b.avaliacao - a.avaliacao).map((d) => ({ ...d })),
     }))
     .sort((a, b) => b.acervo - a.acervo || b.dinheiro - a.dinheiro);
 
@@ -493,6 +448,8 @@ function reiniciar(sala) {
     j.engradado = null;
     j.carregando = false;
     j._sorteioPendente = null;
+    j.rerollAnoRestante = G.REROLL_ANO;
+    j.rerollGeneroRestante = G.REROLL_GENERO;
     j.comprados = [];
     j.compraEncerrada = false;
     j.venda = null;
@@ -502,16 +459,12 @@ function reiniciar(sala) {
   }
 }
 
-// ── Visão individualizada (o segredo do jogo vive aqui) ─────────────────────
-// Cada lojista recebe seu engradado, suas compras e sua loja — mas a NOTA DA
-// CRÍTICA dos discos nunca é enviada antes da batalha. Dos rivais só vazam
-// números (dinheiro, quantos discos, acervo), nunca quais discos.
-function limparAlbum(a) {
-  // versão pública: sem a nota da crítica.
+// ── Visão individualizada ────────────────────────────────────────────────────
+// A AVALIAÇÃO nunca é enviada antes da batalha. Dos rivais só vazam números.
+function albumPublico(a) {
   return {
     mbid: a.mbid, uid: a.uid, album: a.album, artista: a.artista,
-    genero: a.genero, ano: a.ano, capaUrl: a.capaUrl,
-    usuarios: a.usuarios, valor: a.valor, pago: a.pago,
+    genero: a.genero, ano: a.ano, capaUrl: a.capaUrl, valor: a.valor, pago: a.pago,
   };
 }
 
@@ -536,6 +489,7 @@ function visao(sala, playerId) {
 
   let voce = null;
   if (eu) {
+    const revelarLoja = sala.fase === 'fim';
     voce = {
       id: eu.id,
       nome: eu.nome || '',
@@ -544,12 +498,13 @@ function visao(sala, playerId) {
       carregando: eu.carregando,
       compraEncerrada: eu.compraEncerrada,
       vendaConfirmada: eu.vendaConfirmada,
-      comprados: eu.comprados.map(limparAlbum),
+      rerollAnoRestante: eu.rerollAnoRestante,
+      rerollGeneroRestante: eu.rerollGeneroRestante,
+      comprados: eu.comprados.map(albumPublico),
       loja: eu.loja.map((d) => ({
         mbid: d.mbid, album: d.album, artista: d.artista, genero: d.genero,
-        ano: d.ano, capaUrl: d.capaUrl, usuarios: d.usuarios, rodada: d.rodada,
-        // crítica só no fim
-        critica: sala.fase === 'fim' ? d.critica : undefined,
+        ano: d.ano, capaUrl: d.capaUrl, rodada: d.rodada,
+        avaliacao: revelarLoja ? d.avaliacao : undefined,
       })),
       lojaMax: G.LOJA_MAX,
       compraMax: G.COMPRA_MAX,
@@ -560,10 +515,7 @@ function visao(sala, playerId) {
             ano: eu.engradado.ano,
             genero: eu.engradado.genero,
             offline: eu.engradado.offline,
-            comprado: eu.engradado.comprado,
-            rerollAno: eu.engradado.rerollAno,
-            rerollGenero: eu.engradado.rerollGenero,
-            albuns: eu.engradado.albuns.map(limparAlbum),
+            albuns: eu.engradado.albuns.map(albumPublico),
           }
         : null,
     };

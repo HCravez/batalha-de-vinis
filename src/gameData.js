@@ -1,47 +1,51 @@
 // ───────────────────────────────────────────────────────────────────────────
-//  BATALHA DE VINIS — configuração de dados e modelo de notas/preço
+//  BATALHA DE VINIS — configuração de dados e modelo de avaliação/preço
 //
-//  Os álbuns são REAIS (vêm do MusicBrainz, em src/musicbrainz.js) e as capas
-//  também (Cover Art Archive). As NOTAS, porém, não existem em nenhuma API
-//  gratuita — Metacritic / AlbumOfTheYear / RateYourMusic não têm API livre.
-//  Por isso a nota dos usuários e a nota da crítica são derivadas de forma
-//  DETERMINÍSTICA do MBID do álbum: assim ficam estáveis (o mesmo disco vale
-//  sempre o mesmo) e jogáveis, mas não são notas reais de verdade.
+//  Os álbuns e as capas são REAIS (MusicBrainz + Cover Art Archive). Cada
+//  engradado mostra os **20 mais conhecidos** daquele gênero+ano, ranqueados
+//  por dados REAIS de audiência do **ListenBrainz** (quantos usuários ouviram e
+//  quantas execuções) — ver src/musicbrainz.js.
 //
-//  Dois valores por álbum, como na ideia do jogo:
-//    • nota dos USUÁRIOS  → visível na compra, define o PREÇO (nota×10 ±25%).
-//    • nota da CRÍTICA    → OCULTA até a batalha; decide quem vence e o acervo.
-//  A crítica é correlacionada à dos usuários, mas com desvio — por isso o preço
-//  é só uma pista ruidosa da qualidade real (aparecem gemas baratas e furadas).
+//  Cada álbum tem UM parâmetro de qualidade: a **avaliação** (0–10), derivada
+//  da popularidade real (não é um número aleatório). Nota da crítica "de
+//  verdade" (Metacritic/RYM) não existe em API gratuita; a avaliação por
+//  audiência real é a melhor aproximação possível sem chaves de API.
+//
+//  A avaliação fica **OCULTA na fase de compra** — só o PREÇO (avaliação×10,
+//  ±25%) é uma pista. Ela é revelada na batalha e decide tudo: quem vence e o
+//  acervo final.
 // ───────────────────────────────────────────────────────────────────────────
 
-// Gêneros sorteáveis: tag do MusicBrainz → rótulo exibido.
+const ANO_MIN = 1960;
+const ANO_MAX = 2026;
+
+// Gêneros sorteáveis, cada um restrito às décadas em que faz sentido.
+//   tag   → tag de busca no MusicBrainz
+//   label → nome exibido
+//   decadas → décadas liberadas (anos = [década, década+9] ∩ [ANO_MIN, ANO_MAX])
+const TODAS_DECADAS = [1960, 1970, 1980, 1990, 2000, 2010, 2020];
 const GENEROS = [
-  { tag: 'rock',        label: 'Rock' },
-  { tag: 'pop',         label: 'Pop' },
-  { tag: 'hip hop',     label: 'Hip-Hop' },
-  { tag: 'jazz',        label: 'Jazz' },
-  { tag: 'soul',        label: 'Soul' },
-  { tag: 'funk',        label: 'Funk' },
-  { tag: 'electronic',  label: 'Eletrônico' },
-  { tag: 'punk',        label: 'Punk' },
-  { tag: 'heavy metal', label: 'Metal' },
-  { tag: 'folk',        label: 'Folk' },
-  { tag: 'reggae',      label: 'Reggae' },
-  { tag: 'blues',       label: 'Blues' },
-  { tag: 'country',     label: 'Country' },
-  { tag: 'disco',       label: 'Disco' },
+  { tag: 'rock',             label: 'Rock',        decadas: TODAS_DECADAS },
+  { tag: 'pop',              label: 'Pop',         decadas: TODAS_DECADAS },
+  { tag: 'hip hop',          label: 'Hip-Hop',     decadas: [1990, 2000, 2010, 2020] },
+  { tag: 'electronic',       label: 'Eletrônico',  decadas: [1980, 1990, 2000, 2010, 2020] },
+  { tag: 'jazz',             label: 'Jazz',        decadas: [1960] },
+  { tag: 'metal',            label: 'Metal',       decadas: [1980, 1990, 2000, 2010, 2020] },
+  { tag: 'punk',             label: 'Punk',        decadas: [1980, 1990, 2000, 2010, 2020] },
+  { tag: 'disco',            label: 'Disco',       decadas: [1980] },
+  { tag: 'blues',            label: 'Blues',       decadas: [1960] },
+  { tag: 'alternative rock', label: 'Alternativo', decadas: [1980, 1990, 2000, 2010, 2020] },
 ];
 
-const ANO_MIN = 1966;
-const ANO_MAX = 2016;
-
-const ALBUNS_POR_ENGRADADO = 20; // quantos discos aparecem no engradado
+const ALBUNS_POR_ENGRADADO = 20;
 const DINHEIRO_INICIAL = 500;
 const TOTAL_RODADAS = 5;
-const LOJA_MAX = 5;   // teto de álbuns guardados na loja (acervo final)
-const COMPRA_MAX = 10; // teto de compras por rodada
-const COMPRA_MIN = 4;  // alvo recomendado por rodada
+const LOJA_MAX = 5;       // teto de álbuns guardados (acervo final)
+const COMPRA_MAX = 10;    // teto de compras por rodada
+const COMPRA_MIN = 4;     // alvo recomendado por rodada
+const REROLL_ANO = 3;     // trocas de ano por jogador por rodada
+const REROLL_GENERO = 3;  // trocas de gênero por jogador por rodada
+const MIN_USUARIOS = 2;   // mínimo de ouvintes reais p/ entrar no engradado
 
 // ── Utilidades ──────────────────────────────────────────────────────────────
 function embaralhar(arr) {
@@ -52,15 +56,12 @@ function embaralhar(arr) {
   }
   return a;
 }
-
 function aleatorioInt(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
-
 function clamp(n, min, max) {
   return Math.max(min, Math.min(max, n));
 }
-
 function round1(n) {
   return Math.round(n * 10) / 10;
 }
@@ -76,25 +77,51 @@ function frac(str, sal) {
   return ((h >>> 0) % 100000) / 100000;
 }
 
-// Notas determinísticas a partir do MBID.
-//   usuários: 2.6 – 9.6   (define o preço)
-//   crítica:  usuários ± 1.7  (oculta; decide as batalhas)
-function notasDe(mbid) {
-  const usuarios = round1(2.6 + frac(mbid, 'u') * 7.0);
-  const desvio = (frac(mbid, 'c') - 0.5) * 3.4; // ±1.7
-  const critica = round1(clamp(usuarios + desvio, 1.0, 10.0));
-  return { usuarios, critica };
+// ── Sorteio de gênero e ano ──────────────────────────────────────────────────
+function acharGenero(tag) {
+  return GENEROS.find((g) => g.tag === tag) || null;
+}
+function generoAleatorio(exTag) {
+  let g;
+  do {
+    g = GENEROS[aleatorioInt(0, GENEROS.length - 1)];
+  } while (exTag && g.tag === exTag && GENEROS.length > 1);
+  return g;
+}
+// Ano válido para o gênero: sorteia uma das décadas liberadas e um ano dentro.
+function anoDoGenero(genero, exAno) {
+  const decadas = genero.decadas || TODAS_DECADAS;
+  let ano;
+  let tentativas = 0;
+  do {
+    const dec = decadas[aleatorioInt(0, decadas.length - 1)];
+    const lo = Math.max(ANO_MIN, dec);
+    const hi = Math.min(ANO_MAX, dec + 9);
+    ano = aleatorioInt(lo, hi);
+    tentativas++;
+  } while (exAno && ano === exAno && tentativas < 12);
+  return ano;
 }
 
-// Preço = nota dos usuários × 10, variando ±25% (determinístico por MBID).
-function precoDe(usuarios, mbid) {
+// ── Modelo de avaliação (a partir da audiência real do ListenBrainz) ─────────
+//   usuarios = ouvintes distintos | execucoes = total de plays
+//   famoso (milhares de ouvintes) → ~9–10 | conhecido → ~6–8 | fringe → ~3–4
+function avaliacaoDe(usuarios, execucoes) {
+  const mapU = Math.min(10, (Math.log10((usuarios || 0) + 1) / 4.0) * 10);
+  const mapL = Math.min(10, (Math.log10((execucoes || 0) + 1) / 5.5) * 10);
+  const a = 0.65 * mapU + 0.35 * mapL;
+  return round1(clamp(a, 1.5, 10));
+}
+
+// Preço = avaliação × 10, variando ±25% (determinístico por MBID).
+function precoDe(avaliacao, mbid) {
   const fator = 0.75 + frac(mbid, 'p') * 0.5; // 0.75 – 1.25
-  return Math.max(5, Math.round(usuarios * 10 * fator));
+  return Math.max(5, Math.round(avaliacao * 10 * fator));
 }
 
-// Monta o objeto-álbum do jogo a partir de um MBID e metadados reais.
-function montarAlbum(mbid, album, artista, generoLabel, ano) {
-  const notas = notasDe(mbid);
+// Monta o objeto-álbum do jogo (avaliacao fica oculta do cliente até a batalha).
+function montarAlbum(mbid, album, artista, generoLabel, ano, usuarios, execucoes) {
+  const avaliacao = avaliacaoDe(usuarios, execucoes);
   return {
     mbid,
     album,
@@ -102,15 +129,14 @@ function montarAlbum(mbid, album, artista, generoLabel, ano) {
     genero: generoLabel,
     ano,
     capaUrl: `https://coverartarchive.org/release-group/${mbid}/front-250`,
-    usuarios: notas.usuarios,
-    critica: notas.critica,
-    valor: precoDe(notas.usuarios, mbid),
+    avaliacao,
+    valor: precoDe(avaliacao, mbid),
+    usuarios: usuarios || 0,
+    execucoes: execucoes || 0,
   };
 }
 
 // ── Engradado de reserva (offline) ──────────────────────────────────────────
-// Se o MusicBrainz estiver fora do ar, o jogo não trava: fabrica um engradado
-// fictício do gênero/ano pedido (sem capa real — o cliente usa a arte gerada).
 const PALAVRAS_A = ['Trovão', 'Néon', 'Asfalto', 'Eclipse', 'Veludo', 'Fumaça', 'Maré', 'Pulso',
   'Cinzas', 'Aurora', 'Concreto', 'Sereno', 'Vertigem', 'Lanterna', 'Câmbio', 'Estática'];
 const PALAVRAS_B = ['de Cobre', 'Particular', 'sem Saída', 'da Madrugada', 'Mecânica', 'Sintética',
@@ -125,28 +151,45 @@ function engradadoFallback(generoLabel, ano) {
     const a = PALAVRAS_A[Math.floor(frac(semente, 'a') * PALAVRAS_A.length)];
     const b = PALAVRAS_B[Math.floor(frac(semente, 'b') * PALAVRAS_B.length)];
     const art = ARTISTAS_F[Math.floor(frac(semente, 'r') * ARTISTAS_F.length)];
-    const mbid = `offline-${semente}`;
-    const alb = montarAlbum(mbid, `${a} ${b}`, art, generoLabel, ano);
-    alb.capaUrl = null; // sem capa real
+    // avaliação fictícia determinística (sem audiência real disponível)
+    const av = round1(clamp(2.6 + frac(semente, 'v') * 7, 1.5, 10));
+    const alb = {
+      mbid: `offline-${semente}`,
+      album: `${a} ${b}`,
+      artista: art,
+      genero: generoLabel,
+      ano,
+      capaUrl: null,
+      avaliacao: av,
+      valor: Math.max(5, Math.round(av * 10 * (0.75 + frac(semente, 'p') * 0.5))),
+      usuarios: 0,
+      execucoes: 0,
+    };
     out.push(alb);
   }
   return out;
 }
 
 module.exports = {
-  GENEROS,
   ANO_MIN,
   ANO_MAX,
+  GENEROS,
   ALBUNS_POR_ENGRADADO,
   DINHEIRO_INICIAL,
   TOTAL_RODADAS,
   LOJA_MAX,
   COMPRA_MAX,
   COMPRA_MIN,
+  REROLL_ANO,
+  REROLL_GENERO,
+  MIN_USUARIOS,
   embaralhar,
   aleatorioInt,
   clamp,
-  notasDe,
+  acharGenero,
+  generoAleatorio,
+  anoDoGenero,
+  avaliacaoDe,
   precoDe,
   montarAlbum,
   engradadoFallback,

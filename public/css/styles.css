@@ -777,3 +777,58 @@ h1, h2, h3 { font-family: var(--fonte-titulo); font-weight: 400; letter-spacing:
 .parada__linha { grid-template-columns: 44px 1fr auto auto; }
 .parada__acervo { font-size: .9rem; color: var(--smoke); white-space: nowrap; }
 .parada__acervo b { font-family: var(--fonte-titulo); color: var(--gold); font-size: 1.15rem; }
+
+/* ════════════════════════════════════════════════════════════════════════
+   AJUSTES v2: seleção na compra, avaliação única, COMPRAR, acervo, lucro
+   ════════════════════════════════════════════════════════════════════════ */
+.sleeve.is-selecionado { transform: translateY(-10px); box-shadow: 0 0 0 3px var(--pink), var(--sombra-2); }
+
+/* avaliação revelada (★) — único parâmetro, só na batalha/fim */
+.sleeve__av {
+  position: absolute; top: 8px; right: 8px; z-index: 3;
+  font-family: var(--fonte-titulo); font-size: .82rem; letter-spacing: .5px;
+  background: #2c231d; color: var(--gold); border: 2px solid #120b0d;
+  padding: 2px 8px; border-radius: 6px; box-shadow: 2px 2px 0 rgba(0,0,0,.35);
+}
+
+/* Barra de ação COMPRAR */
+.acao-comprar {
+  display: flex; align-items: center; justify-content: space-between; gap: 14px;
+  flex-wrap: wrap; background: var(--ink-2); border: 2px solid var(--ink-3);
+  border-radius: var(--r-lg); padding: 12px 16px;
+}
+.acao-comprar__info { color: var(--smoke); flex: 1 1 220px; }
+.acao-comprar__info b { color: var(--cream); }
+.preco-tag { color: var(--gold); font-family: var(--fonte-titulo); }
+.dica--alerta { color: var(--pink); text-align: center; margin: 6px 0 0; }
+
+/* Acervo (loja) — visível o tempo todo */
+.acervo { background: var(--ink-2); border: 2px solid rgba(255,200,61,.3); border-radius: var(--r-lg); padding: 12px 14px; }
+.acervo__topo { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+.acervo__titulo { font-family: var(--fonte-titulo); text-transform: uppercase; letter-spacing: 1px; }
+.acervo__cont { color: var(--smoke); font-size: .85rem; }
+.acervo__fila { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+@media (max-width: 560px) { .acervo__fila { grid-template-columns: repeat(3, 1fr); } }
+.acervo-slot { display: grid; gap: 4px; align-content: start; }
+.acervo-slot .sleeve { width: 100%; }
+.acervo-slot__rod { font-size: .62rem; color: var(--smoke-d); text-align: center; text-transform: uppercase; letter-spacing: 1px; }
+.acervo-slot.is-vago .acervo-vazio {
+  aspect-ratio: 1 / 1; border: 2px dashed var(--ink-3); border-radius: var(--r-sm);
+  display: grid; place-content: center; color: var(--smoke-d); font-size: .8rem;
+  background: repeating-linear-gradient(45deg, transparent 0 8px, rgba(255,255,255,.02) 8px 16px);
+}
+
+/* Batalha: lucro / prejuízo claros */
+.batalha-resumo {
+  color: var(--smoke); font-size: .9rem; padding: 8px 0;
+  border-top: 2px solid var(--ink-3); border-bottom: 2px solid var(--ink-3);
+}
+.venda__troca { margin-top: 6px; color: var(--smoke); font-size: .82rem; }
+.venda__troca b { color: var(--cream); }
+.venda__lucro {
+  display: inline-block; margin-top: 6px; font-family: var(--fonte-titulo);
+  letter-spacing: .5px; padding: 2px 10px; border-radius: 6px; font-size: .92rem;
+}
+.venda__lucro.lucro--pos { background: rgba(95,208,138,.18); color: var(--ok); border: 1.5px solid var(--ok); }
+.venda__lucro.lucro--neg { background: rgba(255,61,110,.16); color: #ff6e90; border: 1.5px solid var(--pink); }
+.venda__lucro.lucro--zero { background: var(--ink-3); color: var(--smoke); }

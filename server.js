@@ -186,15 +186,25 @@ io.on('connection', (socket) => {
     if (salas.get(code) === sala) enviarEstado(code);
   });
 
-  socket.on('comprar', ({ mbid } = {}) => {
-    const sala = salas.get(socket.data.code);
+  // COMPRAR: leva o disco e já abre o próximo engradado (se ainda couber).
+  socket.on('comprar', async ({ mbid } = {}) => {
+    const code = socket.data.code;
+    const sala = salas.get(code);
     if (!sala) return;
     const r = R.comprar(sala, socket.data.playerId, mbid);
     if (r.erro) {
       socket.emit('avisoSala', r.erro);
       return;
     }
-    enviarEstado(socket.data.code);
+    enviarEstado(code);
+    if (r.podeMais) {
+      const prep = R.prepararSorteio(sala, socket.data.playerId, 'novo');
+      if (prep.ok) {
+        enviarEstado(code);
+        await R.executarSorteio(sala, socket.data.playerId);
+        if (salas.get(code) === sala) enviarEstado(code);
+      }
+    }
   });
 
   socket.on('encerrarCompras', () => {

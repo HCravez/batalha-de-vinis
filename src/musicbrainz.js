@@ -1,13 +1,16 @@
 // ───────────────────────────────────────────────────────────────────────────
-//  BATALHA DE VINIS — busca de álbuns reais no MusicBrainz
+//  BATALHA DE VINIS — busca de álbuns reais (MusicBrainz + ListenBrainz)
 //
-//  Tudo aqui roda no SERVIDOR. O MusicBrainz pede um User-Agent identificável
-//  e limita a ~1 requisição por segundo por IP, então:
-//    • as chamadas passam por uma fila que respeita o intervalo (rate limit);
-//    • os engradados (ano+gênero) ficam em cache na memória do processo, pois
-//      os dados de um álbum não mudam — assim repetições saem na hora.
-//  As capas vêm do Cover Art Archive direto no <img> do cliente (URL no álbum),
-//  então não gastam requisição do servidor.
+//  Tudo roda no SERVIDOR. Pipeline de cada engradado (gênero + ano):
+//    1. MusicBrainz: busca os release-groups do gênero+ano (1 requisição).
+//    2. ListenBrainz: popularidade REAL em lote — quantos ouvintes/execuções
+//       cada álbum tem (1–2 requisições). É o ranking de "mais conhecidos".
+//    3. Mantém só quem tem audiência real, ordena pelos mais ouvidos e fica
+//       com os 20 primeiros. A nota (avaliação) vem dessa audiência real.
+//
+//  MusicBrainz pede User-Agent e ~1 req/s; respeitamos com uma fila. Os
+//  engradados ficam em cache na memória do processo (dados não mudam), então
+//  repetições saem na hora. As capas vêm do Cover Art Archive direto no <img>.
 // ───────────────────────────────────────────────────────────────────────────
 
 const G = require('./gameData');
@@ -15,7 +18,7 @@ const G = require('./gameData');
 const VA_MBID = '89ad4ac3-39f7-470e-963a-56509c546377'; // "Various Artists"
 const USER_AGENT = 'BatalhaDeVinis/1.0 (jogo educativo; https://localhost)';
 const MB_GAP = 1100;     // ms mínimos entre chamadas ao MusicBrainz
-const MIN_ALBUNS = 8;    // abaixo disso, o engradado é "magro" demais
+const MIN_ALBUNS = 6;    // abaixo disso o engradado é "magro" demais
 
 const cache = new Map();   // 'tag|ano' -> engradado pronto
 const pending = new Map(); // 'tag|ano' -> Promise em andamento (dedup)
@@ -32,7 +35,7 @@ function agendar(fn) {
     ultima = Date.now();
     return fn();
   });
-  corrente = exec.then(() => {}, () => {}); // mantém a fila viva mesmo com erro
+  corrente = exec.then(() => {}, () => {});
   return exec;
 }
 
@@ -43,7 +46,7 @@ async function buscarGrupos(generoTag, ano) {
     `primarytype:album AND NOT secondarytype:compilation`;
   const url =
     'https://musicbrainz.org/ws/2/release-group' +
-    `?query=${encodeURIComponent(q)}&fmt=json&limit=90`;
+    `?query=${encodeURIComponent(q)}&fmt=json&limit=100`;
 
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), 12000);
@@ -60,37 +63,57 @@ async function buscarGrupos(generoTag, ano) {
   }
 }
 
-// Filtra para discos "de verdade" (álbum de estúdio, com artista nomeado) e
-// limita à quantidade do engradado, sem repetir o mesmo álbum.
-function montarAlbuns(grupos, generoLabel, ano) {
+// Candidatos "de verdade": álbum de estúdio, com artista nomeado, sem repetir.
+function candidatos(grupos) {
   const vistos = new Set();
   const out = [];
   for (const g of grupos) {
-    if (out.length >= G.ALBUNS_POR_ENGRADADO) break;
     if ((g['primary-type'] || '') !== 'Album') continue;
-    if ((g['secondary-types'] || []).length) continue; // pula live/trilha/etc.
-
+    if ((g['secondary-types'] || []).length) continue;
     const credito = g['artist-credit'] || [];
-    const artista = credito
-      .map((a) => (a.name || '') + (a.joinphrase || ''))
-      .join('')
-      .trim();
+    const artista = credito.map((a) => (a.name || '') + (a.joinphrase || '')).join('').trim();
     const artId = credito[0] && credito[0].artist && credito[0].artist.id;
     if (!artista || artId === VA_MBID) continue;
-
     const titulo = (g.title || '').trim();
     if (!titulo) continue;
-
     const chave = (titulo + '~' + artista).toLowerCase();
     if (vistos.has(chave)) continue;
     vistos.add(chave);
-
-    out.push(G.montarAlbum(g.id, titulo, artista, generoLabel, ano));
+    out.push({ mbid: g.id, album: titulo, artista });
   }
   return out;
 }
 
-// Busca (com cache) o engradado de um par gênero+ano.
+// Popularidade real (ListenBrainz), em lotes de até 50 MBIDs.
+async function popularidade(mbids) {
+  const mapa = {};
+  for (let i = 0; i < mbids.length; i += 50) {
+    const lote = mbids.slice(i, i + 50);
+    try {
+      const res = await fetch('https://api.listenbrainz.org/1/popularity/release-group', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'User-Agent': USER_AGENT },
+        body: JSON.stringify({ release_group_mbids: lote }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const arr = Array.isArray(data) ? data : data.payload || [];
+        for (const p of arr) {
+          mapa[p.release_group_mbid] = {
+            usuarios: p.total_user_count || 0,
+            execucoes: p.total_listen_count || 0,
+          };
+        }
+      }
+    } catch (_) {
+      /* sem popularidade neste lote: tudo bem, esses álbuns ficam de fora */
+    }
+    if (i + 50 < mbids.length) await sleep(250);
+  }
+  return mapa;
+}
+
+// Busca (com cache) o engradado de um par gênero+ano:
 //   { ano, genero, generoTag, albuns:[...], offline:bool }
 async function buscarEngradado(generoTag, generoLabel, ano) {
   const chave = generoTag + '|' + ano;
@@ -100,12 +123,23 @@ async function buscarEngradado(generoTag, generoLabel, ano) {
   const p = (async () => {
     try {
       const grupos = await agendar(() => buscarGrupos(generoTag, ano));
-      const albuns = montarAlbuns(grupos, generoLabel, ano);
+      const cand = candidatos(grupos);
+      const pop = cand.length ? await popularidade(cand.map((c) => c.mbid)) : {};
+
+      const albuns = cand
+        .map((c) => {
+          const pp = pop[c.mbid] || { usuarios: 0, execucoes: 0 };
+          return { ...c, usuarios: pp.usuarios, execucoes: pp.execucoes };
+        })
+        .filter((c) => c.usuarios >= G.MIN_USUARIOS) // só com audiência real
+        .sort((a, b) => b.usuarios - a.usuarios)      // os mais conhecidos primeiro
+        .slice(0, G.ALBUNS_POR_ENGRADADO)
+        .map((c) => G.montarAlbum(c.mbid, c.album, c.artista, generoLabel, ano, c.usuarios, c.execucoes));
+
       const res = { ano, genero: generoLabel, generoTag, albuns, offline: false };
       cache.set(chave, res); // só cacheia sucesso
       return res;
     } catch (e) {
-      // Sem rede / fora do ar: engradado de reserva para o jogo não travar.
       return {
         ano,
         genero: generoLabel,
