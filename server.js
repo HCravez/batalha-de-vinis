@@ -3,6 +3,8 @@
 //  Express serve as páginas; Socket.IO conduz as salas em tempo real.
 //  Rotas:  /          → vitrine (criar/entrar numa loja)
 //          /:codigo   → a sala de batalha
+//  Os dados dos discos (álbuns reais + capas) vêm do MusicBrainz / Cover Art
+//  Archive em src/musicbrainz.js — sempre do lado do servidor.
 // ───────────────────────────────────────────────────────────────────────────
 
 const path = require('path');
@@ -48,16 +50,59 @@ function enviarEstado(code) {
   }
 }
 
+// Abre o 1º engradado de cada lojista no começo de uma rodada de compra.
+// Mostra "garimpando…" na hora e vai preenchendo conforme o MusicBrainz responde.
+async function abrirEngradadosIniciais(code) {
+  const sala = salas.get(code);
+  if (!sala || sala.fase !== 'compra') return;
+  for (const j of sala.jogadores) {
+    if (j.conectado && !j.engradado && !j.compraEncerrada) {
+      R.prepararSorteio(sala, j.id, 'novo');
+    }
+  }
+  enviarEstado(code);
+  await Promise.all(
+    sala.jogadores.map(async (j) => {
+      if (j._sorteioPendente) {
+        await R.executarSorteio(sala, j.id);
+        if (salas.get(code) === sala) enviarEstado(code);
+      }
+    })
+  );
+}
+
+// Sai da compra para a venda quando todos encerraram.
+function tentarAbrirVenda(code) {
+  const sala = salas.get(code);
+  if (!sala || sala.fase !== 'compra') return;
+  R.forcarEncerrarDesconectados(sala);
+  if (!R.todosEncerraramCompra(sala)) return;
+  R.comecarVenda(sala);
+  enviarEstado(code);
+}
+
+// Resolve a venda em batalha quando todos confirmaram.
+function tentarResolverVenda(code) {
+  const sala = salas.get(code);
+  if (!sala || sala.fase !== 'venda') return;
+  R.autoConfirmarDesconectados(sala);
+  if (!R.todosConfirmaramVenda(sala)) return;
+  const rev = R.resolverVendas(sala);
+  enviarEstado(code);
+  io.to(code).emit('revelacaoVendas', rev);
+  agendarProxima(code);
+}
+
 function agendarProxima(code) {
   const sala = salas.get(code);
   if (!sala) return;
   clearTimeout(sala.timerProxima);
-  sala.timerProxima = setTimeout(() => avancar(code), 11000);
+  sala.timerProxima = setTimeout(() => avancar(code), 24000);
 }
 
-function avancar(code) {
+async function avancar(code) {
   const sala = salas.get(code);
-  if (!sala || sala.fase !== 'revelacao') return;
+  if (!sala || sala.fase !== 'batalha') return;
   clearTimeout(sala.timerProxima);
   const r = R.proximaRodada(sala);
   if (r.fim) {
@@ -66,18 +111,8 @@ function avancar(code) {
     io.to(code).emit('fimDeJogo', fim);
   } else {
     enviarEstado(code);
+    await abrirEngradadosIniciais(code);
   }
-}
-
-function tentarResolver(code) {
-  const sala = salas.get(code);
-  if (!sala || sala.fase !== 'jogo') return;
-  if (!R.todosConectadosJogaram(sala)) return;
-  R.autoJogarDesconectados(sala);
-  const rev = R.resolverBatalha(sala);
-  enviarEstado(code);
-  io.to(code).emit('revelacaoBatalha', rev);
-  agendarProxima(code);
 }
 
 io.on('connection', (socket) => {
@@ -109,8 +144,8 @@ io.on('connection', (socket) => {
     if (cb) cb({ ok: true, code, souHost: sala.hostId === playerId });
     enviarEstado(code);
     // Reconexão no meio de um momento especial: reenvia o quadro atual.
-    if (sala.fase === 'revelacao' && sala.ultimaRevelacao) {
-      socket.emit('revelacaoBatalha', sala.ultimaRevelacao);
+    if (sala.fase === 'batalha' && sala.ultimaRevelacao) {
+      socket.emit('revelacaoVendas', sala.ultimaRevelacao);
     }
     if (sala.fase === 'fim' && sala.ultimoFim) {
       socket.emit('fimDeJogo', sala.ultimoFim);
@@ -124,7 +159,7 @@ io.on('connection', (socket) => {
     enviarEstado(socket.data.code);
   });
 
-  socket.on('iniciar', () => {
+  socket.on('iniciar', async () => {
     const sala = salas.get(socket.data.code);
     if (!sala || sala.hostId !== socket.data.playerId) return;
     const res = R.iniciar(sala);
@@ -133,18 +168,55 @@ io.on('connection', (socket) => {
       return;
     }
     enviarEstado(socket.data.code);
+    await abrirEngradadosIniciais(socket.data.code);
   });
 
-  socket.on('jogar', ({ uid } = {}) => {
+  // Garimpar: tipo 'novo' (próximo engradado) | 'ano' | 'genero'.
+  socket.on('engradado', async ({ tipo } = {}) => {
+    const code = socket.data.code;
+    const sala = salas.get(code);
+    if (!sala) return;
+    const r = R.prepararSorteio(sala, socket.data.playerId, tipo);
+    if (r.erro) {
+      socket.emit('avisoSala', r.erro);
+      return;
+    }
+    enviarEstado(code);
+    await R.executarSorteio(sala, socket.data.playerId);
+    if (salas.get(code) === sala) enviarEstado(code);
+  });
+
+  socket.on('comprar', ({ mbid } = {}) => {
     const sala = salas.get(socket.data.code);
     if (!sala) return;
-    const res = R.jogar(sala, socket.data.playerId, uid);
-    if (res.erro) {
-      socket.emit('avisoSala', res.erro);
+    const r = R.comprar(sala, socket.data.playerId, mbid);
+    if (r.erro) {
+      socket.emit('avisoSala', r.erro);
       return;
     }
     enviarEstado(socket.data.code);
-    tentarResolver(socket.data.code);
+  });
+
+  socket.on('encerrarCompras', () => {
+    const code = socket.data.code;
+    const sala = salas.get(code);
+    if (!sala) return;
+    R.encerrarCompras(sala, socket.data.playerId);
+    enviarEstado(code);
+    tentarAbrirVenda(code);
+  });
+
+  socket.on('confirmarVenda', (arranjo = {}) => {
+    const code = socket.data.code;
+    const sala = salas.get(code);
+    if (!sala) return;
+    const r = R.confirmarVenda(sala, socket.data.playerId, arranjo);
+    if (r.erro) {
+      socket.emit('avisoSala', r.erro);
+      return;
+    }
+    enviarEstado(code);
+    tentarResolverVenda(code);
   });
 
   socket.on('proxima', () => {
@@ -187,12 +259,14 @@ io.on('connection', (socket) => {
       }, 60000);
     }
     enviarEstado(code);
-    tentarResolver(code);
+    // Não trava o jogo se quem caiu estava no meio de uma fase.
+    tentarAbrirVenda(code);
+    tentarResolverVenda(code);
   });
 });
 
-// Inicialização correta usando a variável de ambiente da AWS
+// Inicialização usando a variável de ambiente (PORT padrão 3000).
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log(`\n  🎙️  Batalha de Vinis no ar  →  porta: ${PORT}\n`);
+  console.log(`\n  🎙️  Batalha de Vinis no ar  →  http://localhost:${PORT}\n`);
 });

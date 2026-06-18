@@ -466,7 +466,7 @@ h1, h2, h3 { font-family: var(--fonte-titulo); font-weight: 400; letter-spacing:
   --w: 150px;
   position: relative;
   width: var(--w);
-  height: calc(var(--w) + 44px);
+  height: auto;
   flex: 0 0 auto;
   border-radius: var(--r-sm);
   scroll-snap-align: start;
@@ -484,7 +484,8 @@ h1, h2, h3 { font-family: var(--fonte-titulo); font-weight: 400; letter-spacing:
 
 .sleeve__art {
   position: relative;
-  height: var(--w);
+  aspect-ratio: 1 / 1;
+  height: auto;
   background:
     radial-gradient(120% 120% at 18% 12%, var(--c1) 0%, var(--c2) 60%, #1a1410 100%);
   display: grid; place-items: center;
@@ -549,7 +550,7 @@ h1, h2, h3 { font-family: var(--fonte-titulo); font-weight: 400; letter-spacing:
 .venda__nome { font-family: var(--fonte-titulo); font-size: 1.05rem; margin-bottom: 8px; line-height: 1; word-break: break-word; }
 
 /* Container que faz o flip 3D da capa */
-.flip { perspective: 900px; width: 150px; height: 194px; margin: 0 auto; }
+.flip { perspective: 900px; width: 150px; height: 244px; margin: 0 auto; }
 .flip__inner { position: relative; width: 100%; height: 100%; transform-style: preserve-3d; transition: transform .7s cubic-bezier(.4,.2,.2,1); transform: rotateY(180deg); }
 .flip.virado .flip__inner { transform: rotateY(0deg); }
 .flip__face { position: absolute; inset: 0; backface-visibility: hidden; }
@@ -618,6 +619,161 @@ h1, h2, h3 { font-family: var(--fonte-titulo); font-weight: 400; letter-spacing:
 @media (max-width: 560px) {
   .vitrine__titulo { text-shadow: 3px 3px 0 var(--pink), 5px 5px 0 rgba(0,0,0,.35); }
   .sleeve { --w: 132px; }
-  .flip { width: 132px; height: 172px; }
+  .flip { width: 132px; height: 220px; }
   .venda { width: 150px; }
+  .painel-rodada { flex-direction: column; align-items: stretch; gap: 10px; }
+  .engradado-grade { grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); }
 }
+
+/* ════════════════════════════════════════════════════════════════════════
+   CAPA REAL + NOTAS  (sobre a sleeve existente)
+   ════════════════════════════════════════════════════════════════════════ */
+.sleeve__capa {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  object-fit: cover; z-index: 1; background: #0c0a08;
+}
+.sleeve__art-bola { z-index: 0; }
+.sleeve.is-bloqueado { opacity: .52; filter: grayscale(.35); }
+.sleeve.is-bloqueado:hover { transform: none; }
+.sleeve.is-campeao { box-shadow: 0 0 0 3px var(--gold), 0 0 28px rgba(255,200,61,.45); }
+.sticker--pago  { background: var(--cream); }
+.sticker--venda { background: var(--ok); color: #0d2a18; }
+
+.sleeve__notas { display: flex; gap: 6px; margin-top: 5px; flex-wrap: wrap; }
+.nota {
+  font-family: var(--fonte-titulo); font-size: .72rem; letter-spacing: .5px;
+  padding: 1px 6px; border-radius: 4px; line-height: 1.35;
+}
+.nota--user { background: #efe2c6; color: #5a4326; }
+.nota--crit { background: #2c231d; color: var(--gold); }
+.sleeve__vit {
+  display: block; margin-top: 5px; font-family: var(--fonte-mao); font-weight: 700;
+  font-size: .9rem; color: var(--pink-d);
+}
+.flip__face .sleeve { width: 100%; height: 100%; }
+
+/* ════════════════════════════════════════════════════════════════════════
+   PAINEL DE RODADA (cabeçalho de compra/venda)
+   ════════════════════════════════════════════════════════════════════════ */
+.compra, .venda-fase { display: grid; gap: 20px; }
+
+.painel-rodada {
+  display: flex; align-items: center; justify-content: space-between; gap: 14px;
+  background: var(--ink-2); border: 2px solid var(--ink-3); border-radius: var(--r-lg);
+  padding: 12px 18px;
+}
+.painel-rodada__esq { display: grid; }
+.painel-rodada__tag { font-family: var(--fonte-mao); font-size: 1.4rem; color: var(--gold); line-height: 1; }
+.painel-rodada__num { font-family: var(--fonte-titulo); font-size: 1.5rem; text-transform: uppercase; }
+.painel-rodada__dir { display: flex; gap: 10px; }
+.pill {
+  background: var(--ink); border: 2px solid var(--ink-3); border-radius: var(--r);
+  padding: 6px 14px; text-align: center;
+}
+.pill b { font-family: var(--fonte-titulo); font-size: 1.25rem; display: block; line-height: 1; }
+.pill small { font-size: .58rem; letter-spacing: 2px; text-transform: uppercase; color: var(--smoke); }
+.pill--grana b { color: var(--gold); }
+
+/* ── Engradado (cartaz + controles + grade) ─────────────────────────────── */
+.engradado-cartaz {
+  position: relative; overflow: hidden; text-align: center; color: #fff;
+  background: linear-gradient(135deg, var(--g, var(--pink)) 0%, rgba(0,0,0,.35) 130%);
+  border: 3px solid #120b0d; border-radius: var(--r-lg); padding: 16px 18px;
+  box-shadow: var(--sombra);
+}
+.engradado-cartaz::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background-image: radial-gradient(rgba(255,255,255,.16) 1px, transparent 1.4px);
+  background-size: 6px 6px; mix-blend-mode: overlay;
+}
+.engradado-cartaz__faixa { font-family: var(--fonte-mao); font-size: 1.25rem; opacity: .92; }
+.engradado-cartaz__titulo { font-family: var(--fonte-titulo); font-size: clamp(1.8rem, 6vw, 3rem); text-transform: uppercase; margin: 2px 0 4px; }
+.engradado-cartaz__sub { font-size: .9rem; opacity: .95; }
+
+.engradado-controles { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+.engradado-dica { text-align: center; color: var(--smoke); margin: -4px 0 0; }
+
+.engradado-grade {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 14px; align-items: start;
+}
+
+/* Garimpo (carregando) */
+.garimpo { display: grid; place-items: center; gap: 14px; padding: 40px 0; }
+.garimpo__disco {
+  width: 84px; height: 84px; border-radius: 50%;
+  background: repeating-radial-gradient(circle at 50% 50%, #1b1613 0 2px, #0b0908 2px 4px);
+  box-shadow: var(--sombra), inset 0 0 0 6px rgba(255,255,255,.05);
+  position: relative; animation: girar 1.8s linear infinite;
+}
+.garimpo__disco::after { content: ''; position: absolute; inset: 38%; border-radius: 50%; background: var(--pink); }
+
+/* ── Rivais (linha extra de status) ─────────────────────────────────────── */
+.rival__linha { font-size: .78rem; color: var(--smoke); margin-bottom: 6px; }
+
+/* ════════════════════════════════════════════════════════════════════════
+   VENDA (separar batalha × guardar, ordenar)
+   ════════════════════════════════════════════════════════════════════════ */
+.venda-explica {
+  background: var(--ink-2); border: 2px dashed var(--ink-3); border-radius: var(--r);
+  padding: 12px 16px; color: var(--smoke); font-size: .92rem; line-height: 1.5;
+}
+.venda-explica b { color: var(--cream); }
+
+.venda-trilha {
+  display: flex; gap: 14px; overflow-x: auto; padding: 8px 2px 16px;
+  scroll-snap-type: x proximity; min-height: 60px;
+  border-bottom: 2px solid var(--ink-3);
+}
+.venda-trilha--guardar {
+  background: linear-gradient(180deg, rgba(255,200,61,.06), transparent);
+  border-radius: var(--r); padding: 12px; border: 2px solid rgba(255,200,61,.25);
+}
+.venda-item { position: relative; display: grid; gap: 8px; scroll-snap-align: start; }
+.venda-item__pos {
+  position: absolute; top: -6px; left: -6px; z-index: 5;
+  font-family: var(--fonte-titulo); font-size: .85rem; color: #160d0a;
+  background: var(--gold); border: 2px solid #120b0d; border-radius: 50%;
+  width: 30px; height: 30px; display: grid; place-content: center; box-shadow: 2px 2px 0 rgba(0,0,0,.35);
+}
+.venda-item__ferramentas { display: flex; gap: 4px; justify-content: center; }
+.tbtn {
+  font-family: var(--fonte-texto); font-weight: 700; font-size: .78rem;
+  background: var(--ink-3); color: var(--cream); border: 2px solid #120b0d;
+  border-radius: var(--r-sm); padding: 5px 8px; cursor: pointer; white-space: nowrap;
+}
+.tbtn:hover { background: var(--wood); }
+.tbtn:disabled { opacity: .35; cursor: not-allowed; }
+.tbtn--guardar { background: var(--gold); color: #160d0a; }
+.tbtn--guardar:hover { background: #ffd766; }
+
+.venda-acoes { text-align: center; display: grid; gap: 8px; justify-items: center; margin-top: 4px; }
+.venda-acoes .dica { color: var(--smoke); font-size: .88rem; }
+
+.aguardando-bloco { text-align: center; display: grid; gap: 10px; justify-items: center; padding: 30px 0; }
+
+/* ════════════════════════════════════════════════════════════════════════
+   BATALHA (grade por lojista)
+   ════════════════════════════════════════════════════════════════════════ */
+.batalha-grade { display: grid; gap: 18px; grid-template-columns: 1fr; }
+@media (min-width: 760px) { .batalha-grade { grid-template-columns: repeat(2, 1fr); } }
+
+.batalha-bloco {
+  background: var(--ink-2); border: 2px solid var(--ink-3); border-radius: var(--r-lg);
+  padding: 16px; display: grid; gap: 12px; align-content: start;
+}
+.batalha-bloco.is-meu { border-color: var(--gold); box-shadow: 0 0 0 2px rgba(255,200,61,.35); }
+.batalha-bloco__topo { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.batalha-bloco__topo h3 { font-size: 1.3rem; text-transform: uppercase; }
+.voce-tag { font-family: var(--fonte-mao); font-size: .9rem; color: var(--gold); }
+.batalha-bloco__grana { font-family: var(--fonte-titulo); color: var(--ok); font-size: 1.15rem; white-space: nowrap; }
+.batalha-bloco__grana small { font-family: var(--fonte-texto); color: var(--smoke); font-size: .55rem; letter-spacing: 1.5px; text-transform: uppercase; display: block; }
+.batalha-bloco__rodape { border-top: 2px solid var(--ink-3); padding-top: 10px; color: var(--smoke); font-size: .88rem; }
+.batalha-bloco__rodape b { color: var(--cream); }
+.batalha-guardados .secao-rotulo { font-size: .78rem; margin-bottom: 6px; }
+.guardados-fila { display: flex; gap: 10px; flex-wrap: wrap; }
+.guardado-mini .sleeve { --w: 96px; }
+
+.parada__linha { grid-template-columns: 44px 1fr auto auto; }
+.parada__acervo { font-size: .9rem; color: var(--smoke); white-space: nowrap; }
+.parada__acervo b { font-family: var(--fonte-titulo); color: var(--gold); font-size: 1.15rem; }
