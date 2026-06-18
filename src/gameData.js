@@ -116,8 +116,11 @@ function anoDoGenero(genero, exAno) {
 //   usuarios = ouvintes distintos | execucoes = total de plays
 //   famoso (milhares de ouvintes) → ~9–10 | conhecido → ~6–8 | fringe → ~3–4
 function avaliacaoDe(usuarios, execucoes) {
-  const mapU = Math.min(10, (Math.log10((usuarios || 0) + 1) / 4.0) * 10);
-  const mapL = Math.min(10, (Math.log10((execucoes || 0) + 1) / 5.5) * 10);
+  // Divisores mais altos = menos saturação no topo: só os mega-famosos chegam a
+  // ~10; os demais se espalham (ex.: ~8.5 famoso, ~6 conhecido, ~5 de nicho),
+  // dando empates raros e batalhas com vencedor claro.
+  const mapU = Math.min(10, (Math.log10((usuarios || 0) + 1) / 4.8) * 10);
+  const mapL = Math.min(10, (Math.log10((execucoes || 0) + 1) / 6.2) * 10);
   const a = 0.65 * mapU + 0.35 * mapL;
   return round1(clamp(a, 1.5, 10));
 }

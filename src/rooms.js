@@ -418,8 +418,10 @@ function resolverBatalhaDeUm(ordem) {
 }
 
 function precoRevenda(disco) {
-  // 0 vitórias → 0.5× (prejuízo); cada vitória soma 0.6× sobre o preço de tabela.
-  return Math.max(1, Math.round(disco.valor * (0.5 + 0.6 * (disco.vitorias || 0))));
+  // Vale o VALOR REAL do disco (avaliação×10) + bônus por vitória. Um discão
+  // comprado barato lucra mesmo com 0 vitórias; o prejuízo vem de pagar caro ou
+  // de comprar disco fraco. Cada vitória soma +50% sobre o valor real.
+  return Math.max(1, Math.round(disco.avaliacao * 10 * (0.9 + 0.5 * (disco.vitorias || 0))));
 }
 
 // Modo sozinho — mercado de colecionador com swings que IMPORTAM. O disco vale
