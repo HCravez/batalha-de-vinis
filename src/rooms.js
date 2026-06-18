@@ -169,6 +169,9 @@ function escolherUm(arr) {
 // que já estão no dataset (cache) — assim a maioria dos sorteios é instantânea.
 //   restr.fixarGeneroTag  → só esse gênero (troca de ano)
 //   restr.excluirGeneroTag → qualquer gênero menos esse (troca de gênero)
+//   restr.fixarAno        → tenta manter ESTE ano (troca de gênero); pula pra
+//                           outro gênero até um aceitar o ano; só muda o ano se
+//                           nenhum gênero (inédito) aceitar.
 //   restr.exAno           → evita esse ano
 function escolherCombo(seen, restr) {
   restr = restr || {};
@@ -179,17 +182,24 @@ function escolherCombo(seen, restr) {
   } else {
     generos = G.GENEROS.filter((g) => g.tag !== restr.excluirGeneroTag);
   }
+
   const todos = [];
+  const comAnoFixo = [];
   for (const g of generos) {
     for (const ano of G.anosDoGenero(g)) {
       if (ano === restr.exAno) continue;
       if (seen.has(g.tag + '|' + ano)) continue;
-      todos.push({ generoTag: g.tag, generoLabel: g.label, ano });
+      const item = { generoTag: g.tag, generoLabel: g.label, ano };
+      todos.push(item);
+      if (restr.fixarAno != null && ano === restr.fixarAno) comAnoFixo.push(item);
     }
   }
-  if (!todos.length) return null;
-  const emCache = todos.filter((c) => MB.temNoCache(c.generoTag, c.ano));
-  const pool = emCache.length ? emCache : todos;
+
+  // Troca de gênero: se algum gênero (inédito) aceita o ano atual, fica nele.
+  const candidatos = comAnoFixo.length ? comAnoFixo : todos;
+  if (!candidatos.length) return null;
+  const emCache = candidatos.filter((c) => MB.temNoCache(c.generoTag, c.ano));
+  const pool = emCache.length ? emCache : candidatos;
   return pool[G.aleatorioInt(0, pool.length - 1)];
 }
 
@@ -212,7 +222,8 @@ function prepararSorteio(sala, playerId, tipo) {
   } else if (tipo === 'genero') {
     if (!atual) return { erro: 'Abra um engradado primeiro.' };
     if (j.rerollGeneroRestante <= 0) return { erro: 'Você já trocou o gênero nesta rodada.' };
-    restr = { excluirGeneroTag: atual.generoTag };
+    // mantém o ano: troca só o gênero (pulando até um aceitar o ano atual)
+    restr = { excluirGeneroTag: atual.generoTag, fixarAno: atual.ano };
   } else {
     tipo = 'novo';
     restr = {};
