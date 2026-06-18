@@ -520,6 +520,9 @@ function visao(sala, playerId) {
       pronto: eu.pronto,
       dinheiro: eu.dinheiro,
       carregando: eu.carregando,
+      sorteando: eu.carregando && eu._sorteioPendente
+        ? { genero: eu._sorteioPendente.genero.label, ano: eu._sorteioPendente.ano }
+        : null,
       compraEncerrada: eu.compraEncerrada,
       vendaConfirmada: eu.vendaConfirmada,
       rerollAnoRestante: eu.rerollAnoRestante,

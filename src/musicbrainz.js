@@ -1,31 +1,40 @@
 // ───────────────────────────────────────────────────────────────────────────
 //  BATALHA DE VINIS — busca de álbuns reais (MusicBrainz + ListenBrainz)
 //
-//  Tudo roda no SERVIDOR. Pipeline de cada engradado (gênero + ano):
-//    1. MusicBrainz: busca os release-groups do gênero+ano (1 requisição).
-//    2. ListenBrainz: popularidade REAL em lote — quantos ouvintes/execuções
-//       cada álbum tem (1–2 requisições). É o ranking de "mais conhecidos".
-//    3. Mantém só quem tem audiência real, ordena pelos mais ouvidos e fica
-//       com os 20 primeiros. A nota (avaliação) vem dessa audiência real.
+//  Para mostrar os 20 MAIS CONHECIDOS de um gênero+ano não basta pegar as
+//  primeiras páginas do MusicBrainz: ele ordena por relevância de texto, não
+//  por popularidade, e os álbuns famosos ficam espalhados até a última página
+//  (ex.: em "rock 1988" há 2693 discos e o Surfer Rosa está lá na página 17).
 //
-//  MusicBrainz pede User-Agent e ~1 req/s; respeitamos com uma fila. Os
-//  engradados ficam em cache na memória do processo (dados não mudam), então
-//  repetições saem na hora. As capas vêm do Cover Art Archive direto no <img>.
+//  Então o pipeline é:
+//    1. MusicBrainz: pagina TODOS os release-groups do gênero+ano.
+//    2. ListenBrainz: popularidade REAL (ouvintes/execuções) de cada um.
+//    3. Ordena pelos mais ouvidos e fica com os 20 — os de verdade famosos.
+//
+//  Isso leva ~5–40s na PRIMEIRA vez de cada combinação, então o resultado é
+//  gravado em CACHE EM DISCO (.cache/engradados): depois disso, é instantâneo —
+//  inclusive entre reinícios. Rode `npm run prewarm` para preencher tudo de uma
+//  vez. As capas vêm do Cover Art Archive direto no <img> do cliente.
 // ───────────────────────────────────────────────────────────────────────────
 
+const fs = require('fs');
+const path = require('path');
 const G = require('./gameData');
 
 const VA_MBID = '89ad4ac3-39f7-470e-963a-56509c546377'; // "Various Artists"
 const USER_AGENT = 'BatalhaDeVinis/1.0 (jogo educativo; https://localhost)';
-const MB_GAP = 1100;     // ms mínimos entre chamadas ao MusicBrainz
-const MIN_ALBUNS = 6;    // abaixo disso o engradado é "magro" demais
+const MB_GAP = 1100;        // ms entre chamadas ao MusicBrainz (rate limit)
+const MIN_ALBUNS = 6;       // abaixo disso o engradado é "magro" demais
+const MAX_PAGINAS = 40;     // teto de páginas (100 cada) no fetch profundo
+const GUARDAR_TOP = 24;     // itens crus salvos no cache (buffer sobre os 20)
+const CACHE_VERSAO = 2;
 
-const cache = new Map();   // 'tag|ano' -> engradado pronto
-const pending = new Map(); // 'tag|ano' -> Promise em andamento (dedup)
-
+const CACHE_DIR = path.join(__dirname, '..', '.cache', 'engradados');
+const memCache = new Map();   // 'tag|ano' -> { v, tag, ano, itens }
+const pending = new Map();    // 'tag|ano' -> Promise
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-// Fila serial que espaça as chamadas ao MusicBrainz (respeita o rate limit).
+// ── Fila serial que respeita o rate limit do MusicBrainz ────────────────────
 let corrente = Promise.resolve();
 let ultima = 0;
 function agendar(fn) {
@@ -39,33 +48,49 @@ function agendar(fn) {
   return exec;
 }
 
-async function buscarGrupos(generoTag, ano) {
+// ── Cache em disco ──────────────────────────────────────────────────────────
+function arquivoCache(tag, ano) {
+  return path.join(CACHE_DIR, tag.replace(/[^a-z0-9]+/gi, '_') + '-' + ano + '.json');
+}
+function lerDisco(tag, ano) {
+  try {
+    const dados = JSON.parse(fs.readFileSync(arquivoCache(tag, ano), 'utf8'));
+    if (dados && dados.v === CACHE_VERSAO && Array.isArray(dados.itens)) return dados;
+  } catch (_) { /* sem cache */ }
+  return null;
+}
+function gravarDisco(tag, ano, dados) {
+  try {
+    fs.mkdirSync(CACHE_DIR, { recursive: true });
+    fs.writeFileSync(arquivoCache(tag, ano), JSON.stringify(dados));
+  } catch (_) { /* segue sem persistir */ }
+}
+
+// ── Requisições ─────────────────────────────────────────────────────────────
+async function buscarPagina(generoTag, ano, offset) {
   const q =
     `tag:"${generoTag}" AND ` +
     `firstreleasedate:[${ano}-01-01 TO ${ano}-12-31] AND ` +
     `primarytype:album AND NOT secondarytype:compilation`;
   const url =
     'https://musicbrainz.org/ws/2/release-group' +
-    `?query=${encodeURIComponent(q)}&fmt=json&limit=100`;
-
+    `?query=${encodeURIComponent(q)}&fmt=json&limit=100&offset=${offset}`;
   const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), 12000);
+  const t = setTimeout(() => ctrl.abort(), 15000);
   try {
     const res = await fetch(url, {
       headers: { 'User-Agent': USER_AGENT, Accept: 'application/json' },
       signal: ctrl.signal,
     });
     if (!res.ok) throw new Error('MusicBrainz ' + res.status);
-    const data = await res.json();
-    return data['release-groups'] || [];
+    return res.json();
   } finally {
     clearTimeout(t);
   }
 }
 
-// Candidatos "de verdade": álbum de estúdio, com artista nomeado, sem repetir.
-function candidatos(grupos) {
-  const vistos = new Set();
+// candidatos "de verdade" de uma página (álbum de estúdio, artista nomeado)
+function candidatosDaPagina(grupos) {
   const out = [];
   for (const g of grupos) {
     if ((g['primary-type'] || '') !== 'Album') continue;
@@ -76,16 +101,13 @@ function candidatos(grupos) {
     if (!artista || artId === VA_MBID) continue;
     const titulo = (g.title || '').trim();
     if (!titulo) continue;
-    const chave = (titulo + '~' + artista).toLowerCase();
-    if (vistos.has(chave)) continue;
-    vistos.add(chave);
     out.push({ mbid: g.id, album: titulo, artista });
   }
   return out;
 }
 
-// Popularidade real (ListenBrainz), em lotes de até 50 MBIDs.
-async function popularidade(mbids) {
+// popularidade real (ListenBrainz), lotes de 50; tolera falhas
+async function popularidadeLote(mbids) {
   const mapa = {};
   for (let i = 0; i < mbids.length; i += 50) {
     const lote = mbids.slice(i, i + 50);
@@ -100,45 +122,86 @@ async function popularidade(mbids) {
         const arr = Array.isArray(data) ? data : data.payload || [];
         for (const p of arr) {
           mapa[p.release_group_mbid] = {
-            usuarios: p.total_user_count || 0,
-            execucoes: p.total_listen_count || 0,
+            users: p.total_user_count || 0,
+            listens: p.total_listen_count || 0,
           };
         }
       }
-    } catch (_) {
-      /* sem popularidade neste lote: tudo bem, esses álbuns ficam de fora */
-    }
-    if (i + 50 < mbids.length) await sleep(250);
+    } catch (_) { /* esses ficam de fora */ }
+    if (i + 50 < mbids.length) await sleep(120);
   }
   return mapa;
 }
 
-// Busca (com cache) o engradado de um par gênero+ano:
-//   { ano, genero, generoTag, albuns:[...], offline:bool }
+// Fetch profundo: pagina tudo, mede popularidade em paralelo, fica com os mais
+// ouvidos. Retorna os itens CRUS (sem nota/preço) para o cache resistir a
+// mudanças no modelo de avaliação.
+async function fetchProfundo(generoTag, ano) {
+  const candidatos = [];
+  const vistosMbid = new Set();
+  const vistosChave = new Set();
+  const lbPromises = [];
+
+  for (let off = 0; off < MAX_PAGINAS * 100; off += 100) {
+    const j = await agendar(() => buscarPagina(generoTag, ano, off));
+    const grupos = j['release-groups'] || [];
+    const novos = [];
+    for (const c of candidatosDaPagina(grupos)) {
+      if (vistosMbid.has(c.mbid)) continue;
+      const chave = (c.album + '~' + c.artista).toLowerCase();
+      if (vistosChave.has(chave)) continue;
+      vistosMbid.add(c.mbid);
+      vistosChave.add(chave);
+      novos.push(c);
+      candidatos.push(c);
+    }
+    if (novos.length) lbPromises.push(popularidadeLote(novos.map((c) => c.mbid)));
+    if (grupos.length < 100) break;
+  }
+
+  const mapas = await Promise.all(lbPromises);
+  const pop = Object.assign({}, ...mapas);
+
+  const itens = candidatos
+    .map((c) => {
+      const pp = pop[c.mbid] || { users: 0, listens: 0 };
+      return { mbid: c.mbid, album: c.album, artista: c.artista, users: pp.users, listens: pp.listens };
+    })
+    .filter((c) => c.users >= G.MIN_USUARIOS)
+    .sort((a, b) => b.users - a.users || b.listens - a.listens) // mais conhecidos primeiro
+    .slice(0, GUARDAR_TOP);
+
+  return { v: CACHE_VERSAO, tag: generoTag, ano, geradoEm: Date.now(), itens };
+}
+
+// Monta o engradado jogável a partir dos itens crus (recalcula nota/preço).
+function montarEngradado(dados, generoLabel, ano) {
+  const albuns = dados.itens
+    .slice(0, G.ALBUNS_POR_ENGRADADO)
+    .map((it) => G.montarAlbum(it.mbid, it.album, it.artista, generoLabel, ano, it.users, it.listens));
+  return { ano, genero: generoLabel, generoTag: dados.tag, albuns, offline: false };
+}
+
+// Busca o engradado de um par gênero+ano (memória → disco → fetch profundo).
 async function buscarEngradado(generoTag, generoLabel, ano) {
   const chave = generoTag + '|' + ano;
-  if (cache.has(chave)) return cache.get(chave);
+
+  if (memCache.has(chave)) return montarEngradado(memCache.get(chave), generoLabel, ano);
+
+  const disco = lerDisco(generoTag, ano);
+  if (disco) {
+    memCache.set(chave, disco);
+    return montarEngradado(disco, generoLabel, ano);
+  }
+
   if (pending.has(chave)) return pending.get(chave);
 
   const p = (async () => {
     try {
-      const grupos = await agendar(() => buscarGrupos(generoTag, ano));
-      const cand = candidatos(grupos);
-      const pop = cand.length ? await popularidade(cand.map((c) => c.mbid)) : {};
-
-      const albuns = cand
-        .map((c) => {
-          const pp = pop[c.mbid] || { usuarios: 0, execucoes: 0 };
-          return { ...c, usuarios: pp.usuarios, execucoes: pp.execucoes };
-        })
-        .filter((c) => c.usuarios >= G.MIN_USUARIOS) // só com audiência real
-        .sort((a, b) => b.usuarios - a.usuarios)      // os mais conhecidos primeiro
-        .slice(0, G.ALBUNS_POR_ENGRADADO)
-        .map((c) => G.montarAlbum(c.mbid, c.album, c.artista, generoLabel, ano, c.usuarios, c.execucoes));
-
-      const res = { ano, genero: generoLabel, generoTag, albuns, offline: false };
-      cache.set(chave, res); // só cacheia sucesso
-      return res;
+      const dados = await fetchProfundo(generoTag, ano);
+      memCache.set(chave, dados);
+      gravarDisco(generoTag, ano, dados);
+      return montarEngradado(dados, generoLabel, ano);
     } catch (e) {
       return {
         ano,

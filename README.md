@@ -17,6 +17,14 @@ na memória do servidor, e os engradados de discos ficam em cache.
 > popularidade real é a melhor base possível sem chave de API. A avaliação fica
 > **oculta na compra** (só o preço, = ★ × 10 ± 25%, dá pista) e é revelada na
 > venda.
+>
+> Para achar os **mais conhecidos** de verdade, o servidor pagina **todos** os
+> discos do gênero+ano no MusicBrainz e os ordena pela audiência real (os
+> famosos ficam espalhados, não nas primeiras páginas). Isso leva **~5–40s na
+> 1ª vez de cada combinação** e depois fica **em cache no disco** (`.cache/`),
+> instantâneo para sempre. Rode **`npm run prewarm`** uma vez para preencher
+> tudo de antemão (demora, mas é só uma vez; é resumível). Evite rodar o
+> `prewarm` e o jogo ao mesmo tempo — os dois batem no MusicBrainz.
 
 ---
 

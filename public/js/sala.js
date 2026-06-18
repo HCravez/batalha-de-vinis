@@ -402,9 +402,14 @@
   }
 
   function garimpando() {
+    var s = (S.voce && S.voce.sorteando) || null;
+    var titulo = s ? (esc(s.genero) + ' · ' + esc(s.ano)) : 'Buscando os mais conhecidos';
     return '<div class="engradado-cartaz"><span class="engradado-cartaz__faixa">garimpando…</span>' +
-      '<h2 class="engradado-cartaz__titulo">Buscando os mais conhecidos</h2></div>' +
-      '<div class="garimpo"><div class="garimpo__disco"></div><p class="esperando">Capas e audiência reais, do acervo…</p></div>';
+      '<h2 class="engradado-cartaz__titulo">' + titulo + '</h2></div>' +
+      '<div class="garimpo"><div class="garimpo__disco"></div>' +
+      '<p class="esperando">Ranqueando por audiência real (ListenBrainz)…</p>' +
+      '<p class="dica">A 1ª vez de cada gênero+ano pode levar até ~1 min; depois fica instantâneo (salvo em cache).</p>' +
+      '</div>';
   }
 
   function sortear(tipo) {
