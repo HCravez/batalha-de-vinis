@@ -122,9 +122,11 @@ function avaliacaoDe(usuarios, execucoes) {
   return round1(clamp(a, 1.5, 10));
 }
 
-// Preço = avaliação × 10, variando ±25% (determinístico por MBID).
-function precoDe(avaliacao, mbid) {
-  const fator = 0.75 + frac(mbid, 'p') * 0.5; // 0.75 – 1.25
+// Preço = avaliação × 10, variando ±25% — RE-SORTEADO toda vez que o engradado
+// é montado. Assim o mesmo disco nunca aparece com o mesmo preço duas vezes (a
+// avaliação, que é a qualidade real, continua fixa). É o "bom negócio" dinâmico.
+function precoDe(avaliacao) {
+  const fator = 0.75 + Math.random() * 0.5; // 0.75 – 1.25
   return Math.max(5, Math.round(avaliacao * 10 * fator));
 }
 
@@ -139,7 +141,7 @@ function montarAlbum(mbid, album, artista, generoLabel, ano, usuarios, execucoes
     ano,
     capaUrl: `https://coverartarchive.org/release-group/${mbid}/front-250`,
     avaliacao,
-    valor: precoDe(avaliacao, mbid),
+    valor: precoDe(avaliacao),
     usuarios: usuarios || 0,
     execucoes: execucoes || 0,
   };

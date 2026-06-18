@@ -404,8 +404,6 @@
     if (btnAno && !btnAno.disabled) btnAno.onclick = function () { sortear('ano'); };
     if (btnGen && !btnGen.disabled) btnGen.onclick = function () { sortear('genero'); };
     if (btnEnc) btnEnc.onclick = function () {
-      if ((eu.comprados || []).length < eu.compraMin &&
-          !confirm('Você tem só ' + (eu.comprados || []).length + ' disco(s). Encerrar mesmo assim?')) return;
       btnEnc.disabled = true; socket.emit('encerrarCompras');
     };
     if (btnCmp) btnCmp.onclick = function () {
