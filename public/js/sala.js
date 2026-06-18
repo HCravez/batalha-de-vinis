@@ -214,6 +214,9 @@
 
   function render() {
     if (!S) return;
+    // No modo sozinho não há código de sala nem link para compartilhar.
+    var chip = $('.codigo-chip');
+    if (chip) chip.classList.toggle('oculto', S.modo === 'solo');
     if (S.fase !== 'venda') { arranjoVenda = null; }
     switch (S.fase) {
       case 'lobby':
