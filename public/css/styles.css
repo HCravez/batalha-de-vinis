@@ -155,6 +155,7 @@ h1, h2, h3 { font-family: var(--fonte-titulo); font-weight: 400; letter-spacing:
 }
 .vitrine__topo .ponto { color: var(--pink); }
 .vitrine__topo small { font-family: var(--fonte-texto); color: var(--smoke); letter-spacing: 0; font-weight: 500; }
+.vitrine__topo .btn-lang { margin-left: auto; font-family: var(--fonte-titulo); letter-spacing: 1px; min-width: 42px; text-align: center; }
 
 .vitrine__palco {
   display: grid;
@@ -296,6 +297,11 @@ h1, h2, h3 { font-family: var(--fonte-titulo); font-weight: 400; letter-spacing:
 }
 .barra__marca { font-family: var(--fonte-titulo); letter-spacing: 1px; font-size: 1.05rem; }
 .barra__marca .ponto { color: var(--pink); }
+.barra__dir { display: flex; align-items: center; gap: 10px; }
+.btn-lang {
+  font-family: var(--fonte-titulo); letter-spacing: 1px; font-size: .95rem;
+  min-width: 42px; text-align: center; padding: 9px 12px;
+}
 
 .codigo-chip {
   display: flex; align-items: center; gap: 10px;
@@ -620,7 +626,8 @@ h1, h2, h3 { font-family: var(--fonte-titulo); font-weight: 400; letter-spacing:
 .loja-final__stats { color: var(--smoke); font-size: .92rem; white-space: nowrap; }
 .loja-final__stats b { color: var(--gold); font-family: var(--fonte-titulo); }
 .loja-final__discos {
-  display: flex; gap: 12px; overflow-x: auto; padding-bottom: 8px;
+  display: flex; flex-direction: row; flex-wrap: nowrap;
+  gap: 12px; overflow-x: auto; padding-bottom: 8px;
   scroll-snap-type: x proximity;
 }
 .loja-final__discos .sleeve { --w: 128px; scroll-snap-align: start; }

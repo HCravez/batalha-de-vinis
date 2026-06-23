@@ -18,7 +18,10 @@ const server = http.createServer(app);
 const io = new Server(server);
 
 const PUBLIC = path.join(__dirname, 'public');
-app.use(express.static(PUBLIC));
+// no-cache: o navegador revalida sempre (evita servir CSS/JS antigos no dev).
+app.use(express.static(PUBLIC, {
+  setHeaders: function (res) { res.setHeader('Cache-Control', 'no-cache'); },
+}));
 
 app.get('/', (_req, res) => res.sendFile(path.join(PUBLIC, 'index.html')));
 

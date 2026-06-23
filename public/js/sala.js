@@ -21,6 +21,147 @@
   }
   var nomeSalvo = localStorage.getItem('bdv_nome') || '';
 
+  // ── Idioma (PT/EN) ───────────────────────────────────────────────────────
+  var lang = localStorage.getItem('bdv_lang') || 'pt';
+  var EN = {
+    // lobby
+    'bem-vindo, lojista': 'welcome, shopkeeper', 'Quem tá na loja': "Who's in the shop",
+    'Lojistas na sala': 'Shopkeepers in the room', 'Nome da sua loja': "Your shop's name",
+    'Estou pronto': "I'm ready", 'Pronto': 'Ready', 'Sem nome': 'No name', ' (você)': ' (you)',
+    'ausente…': 'away…', 'pronto pra abrir': 'ready to open', 'escolhendo o nome…': 'picking a name…',
+    'Ninguém por aqui ainda…': 'Nobody here yet…', 'Dá um nome pra sua loja primeiro 🙂': 'Name your shop first 🙂',
+    'o anfitrião': 'the host', 'Abrir as portas': 'Open the doors',
+    'Chame mais um lojista — precisa de pelo menos 2.': 'Get one more shopkeeper — you need at least 2.',
+    'Tudo pronto! Pode abrir as portas.': 'All set! You can open the doors.',
+    'Esperando ': 'Waiting for ', ' abrir as portas…': ' to open the doors…',
+    'Faltam ': 'Still ', ' lojista(s) ficarem prontos.': ' shopkeeper(s) to get ready.',
+    // header / geral
+    'Copiar link': 'Copy link', 'loja': 'shop', 'um instante…': 'a moment…',
+    'Entrando na loja': 'Joining the shop',
+    'Link da loja copiado!': 'Shop link copied!',
+    'Sem conexão com a loja. O servidor está rodando?': 'No connection to the shop. Is the server running?',
+    'Lojista': 'Shopkeeper', 'Os rivais': 'The rivals', 'você': 'you',
+    'Não deu pra entrar': "Couldn't join", 'Voltar para a vitrine': 'Back to the front page', 'opa…': 'oops…',
+    'só um instante…': 'one moment…', 'Preparando sua loja': 'Setting up your shop',
+    // compra
+    'Rodada de compras': 'Buying round', 'Rodada ': 'Round ', 'caixa': 'cash', 'na loja': 'in shop',
+    'garimpando…': 'digging…', 'Buscando os mais conhecidos': 'Finding the best-known',
+    'Ranqueando por audiência real (ListenBrainz)…': 'Ranking by real listens (ListenBrainz)…',
+    'Só na 1ª vez de cada gênero+ano. O servidor vai pré-carregando os outros em segundo plano, então logo fica tudo instantâneo.':
+      'Only the first time for each genre+year. The server pre-loads the others in the background, so it soon becomes instant.',
+    'os 20 mais conhecidos': 'the 20 best-known',
+    'álbuns reais · a avaliação está oculta — só o preço dá pista': 'real albums · the rating is hidden — only the price hints',
+    'Trocar ano': 'Change year', 'Trocar gênero': 'Change genre', 'Encerrar compras': 'Finish buying',
+    'Escolhido: ': 'Picked: ', 'Toque numa capa para escolher um disco.': 'Tap a cover to pick a record.',
+    'COMPRAR': 'BUY', 'Dinheiro insuficiente para esse disco.': 'Not enough money for that record.',
+    'já levado': 'taken', 'caixa cheia': 'crate full', ' discos comprados': ' records bought',
+    'Comprados nesta rodada · ': 'Bought this round · ', 'Nenhum disco comprado ainda.': 'No records bought yet.',
+    'comprando (': 'buying (', 'caixa fechado ✓': 'crate closed ✓', 'ausente': 'away',
+    ' comprados · 🏪 ': ' bought · 🏪 ', 'na loja': 'in shop', ' discos · 🏪 ': ' records · 🏪 ',
+    'Sem conexão com o acervo': 'No connection to the archive',
+    'Não consegui carregar discos reais agora (sem internet?). Nenhum álbum fictício é mostrado.':
+      "Couldn't load real records now (no internet?). No fake albums are shown.",
+    'Tentar de novo': 'Try again',
+    'Caixa fechado! Esperando os outros lojistas terminarem as compras…': 'Crate closed! Waiting for the other shopkeepers to finish buying…',
+    // venda
+    'Hora de vender': 'Time to sell', 'À venda · pelo valor real': 'For sale · at real value',
+    'No balcão · vão para a batalha': 'On the counter · go to battle',
+    'Guardar na loja · acervo final': 'Keep in shop · final collection',
+    'Vender e guardar': 'Sell and keep', 'Confirmar venda': 'Confirm sale',
+    'As avaliações são reveladas agora.': 'Ratings are revealed now.',
+    'Depois disso a batalha começa e as avaliações são reveladas.': 'After this the battle starts and ratings are revealed.',
+    '↑ guardar': '↑ keep', '↓ vender': '↓ sell',
+    'Tudo guardado — nada será vendido.': 'All kept — nothing will be sold.',
+    'Tudo guardado — nada vai à batalha.': 'All kept — nothing goes to battle.',
+    'Nada guardado ainda. Guarde seus melhores!': 'Nothing kept yet. Keep your best!',
+    'A loja não tem mais vagas.': 'The shop has no more slots.',
+    'balcão pronto ✓': 'counter ready ✓', 'montando o balcão…': 'setting up the counter…',
+    'Venda confirmada! Esperando os outros lojistas montarem o balcão…': 'Sale confirmed! Waiting for the other shopkeepers to set up…',
+    // batalha
+    'a hora da verdade': 'the moment of truth', 'Hora de Vender': 'Selling Time', 'Batalha de Vendas': 'Sales Battle',
+    'seus discos são vendidos pelo valor real': 'your records are sold at real value',
+    'lucro/prejuízo agora — a nota (★) só no fim da partida': 'profit/loss now — the rating (★) only at the end of the game',
+    'Próxima rodada': 'Next round', 'Fechar a parada': 'Close the chart',
+    'Avança sozinho em alguns segundos.': 'Advances on its own in a few seconds.',
+    'O anfitrião puxa a próxima rodada…': 'The host starts the next round…',
+    'no caixa': 'in cash', 'Investiu ': 'Spent ', ' · recebeu ': ' · got ', 'crédito da rodada ': 'round credit ',
+    'resultado ': 'result ', 'comprou ': 'bought ', ' → vendeu ': ' → sold ',
+    'LUCRO +': 'PROFIT +', 'PREJUÍZO −': 'LOSS −', 'no zero a zero': 'broke even',
+    'Guardados na loja': 'Kept in shop', 'Loja: ': 'Shop: ', ' guardados · a nota é revelada só no fim da partida': ' kept · the rating is revealed only at the end',
+    ' vitória': ' win', ' vitórias': ' wins', 'sem vitória': 'no win', 'Nada foi ao balcão.': 'Nothing went to the counter.',
+    // loja shelf
+    '🏪 Sua loja · acervo': '🏪 Your shop · collection', ' guardados': ' kept', 'vaga ': 'slot ',
+    'rodada ': 'round ',
+    // fim
+    'fim de jogo': 'game over', 'Parada de Sucessos': 'Hit Parade',
+    ' tem o melhor acervo e leva a parada!': ' has the best collection and tops the chart!',
+    'acervo ': 'collection ', ' · média ': ' · avg ', 'As lojas e seus acervos': 'The shops and their collections',
+    'loja vazia': 'empty shop', 'Tocar de novo': 'Play again', 'Volta todo mundo para o lobby.': 'Sends everyone back to the lobby.',
+    'O anfitrião pode começar uma nova partida.': 'The host can start a new game.',
+    'Seu acervo': 'Your collection', 'média dos seus ': 'average of your ', ' melhores · ': ' best · ',
+    '🎉 Novo recorde!': '🎉 New record!', 'recorde: ': 'record: ', 'caixa final: ': 'final cash: ',
+    'Os ': 'The ', ' da sua loja': ' in your shop', 'Jogar de novo': 'Play again', 'Tente bater seu recorde.': 'Try to beat your record.',
+    // remover loja
+    'Remover da loja': 'Remove from shop',
+    'Remover "': 'Remove "',
+    '" da sua loja? Você abre essa vaga do acervo.': '" from your shop? This frees a collection slot.',
+    // server (avisoSala) — traduzidos no cliente
+    'Outro lojista já levou esse disco.': 'Another shopkeeper already took that record.',
+    'Você já trocou o ano nesta rodada.': 'You already changed the year this round.',
+    'Você já trocou o gênero nesta rodada.': 'You already changed the genre this round.',
+    'Você já encerrou as compras.': 'You already finished buying.',
+    'Acabaram as combinações novas nesta partida.': 'No new genre+year combos left this game.',
+    'A loja já abriu as portas. Espere a próxima partida.': 'The shop already opened. Wait for the next game.',
+    'A loja está lotada (máximo de 6 lojistas).': 'The shop is full (max 6 shopkeepers).',
+    'É preciso pelo menos 2 lojistas para abrir as portas.': 'You need at least 2 shopkeepers to open.',
+    'Todos os lojistas precisam estar prontos.': 'All shopkeepers must be ready.',
+  };
+  // Tradução por substituição de texto: cobre tudo que é renderizado, sem
+  // precisar marcar cada string. Frases mais longas primeiro (evita conflito).
+  var EN_PARES = Object.keys(EN).map(function (k) { return [k, EN[k]]; })
+    .sort(function (a, b) { return b[0].length - a[0].length; });
+  function traduzirTexto(s) {
+    for (var i = 0; i < EN_PARES.length; i++) {
+      if (s.indexOf(EN_PARES[i][0]) >= 0) s = s.split(EN_PARES[i][0]).join(EN_PARES[i][1]);
+    }
+    return s;
+  }
+  function traduzirNo(node) {
+    if (lang !== 'en' || !node) return;
+    if (node.nodeType === 3) {
+      var v = traduzirTexto(node.nodeValue);
+      if (v !== node.nodeValue) node.nodeValue = v;
+      return;
+    }
+    if (node.nodeType !== 1) return;
+    ['placeholder', 'title', 'aria-label'].forEach(function (a) {
+      if (node.hasAttribute && node.hasAttribute(a)) {
+        var w = traduzirTexto(node.getAttribute(a));
+        if (w !== node.getAttribute(a)) node.setAttribute(a, w);
+      }
+    });
+    var kids = node.childNodes;
+    for (var i = 0; i < kids.length; i++) traduzirNo(kids[i]);
+  }
+  function trocarIdioma() {
+    localStorage.setItem('bdv_lang', lang === 'pt' ? 'en' : 'pt');
+    location.reload(); // recarrega no novo idioma; o socket reconecta e restaura
+  }
+  function atualizarBotaoIdioma() {
+    var b = $('#btn-lang');
+    if (b) b.textContent = lang === 'pt' ? 'EN' : 'PT';
+  }
+  // Em inglês: observa o DOM e traduz tudo que for renderizado + o que já existe.
+  if (lang === 'en') {
+    var alvoObs = document.querySelector('.tela') || document.body;
+    new MutationObserver(function (muts) {
+      muts.forEach(function (m) {
+        for (var i = 0; i < m.addedNodes.length; i++) traduzirNo(m.addedNodes[i]);
+      });
+    }).observe(alvoObs, { childList: true, subtree: true });
+    traduzirNo(alvoObs);
+  }
+
   // ── DOM helpers ──────────────────────────────────────────────────────────
   function $(sel) { return document.querySelector(sel); }
   function el(tag, cls, html) {
@@ -44,11 +185,19 @@
   }
   $('#codigo-loja').textContent = code || '····';
 
+  // Botão de idioma (PT/EN)
+  (function () {
+    var b = $('#btn-lang');
+    if (!b) return;
+    b.addEventListener('click', trocarIdioma);
+    atualizarBotaoIdioma();
+  })();
+
   // ── Toast ────────────────────────────────────────────────────────────────
   var toastEl = $('#toast');
   var toastT = null;
   function toast(msg) {
-    toastEl.textContent = msg;
+    toastEl.textContent = lang === 'en' ? traduzirTexto(String(msg == null ? '' : msg)) : msg;
     toastEl.classList.add('mostrar');
     clearTimeout(toastT);
     toastT = setTimeout(function () { toastEl.classList.remove('mostrar'); }, 3400);
@@ -116,11 +265,12 @@
     else if (opts.pago != null) sticker = '<span class="etiqueta sleeve__sticker sticker--pago">' + esc(money(opts.pago)) + '</span>';
     else if (v.valor != null && opts.semPreco !== true) sticker = '<span class="etiqueta sleeve__sticker">' + esc(money(v.valor)) + '</span>';
 
-    // a AVALIAÇÃO só aparece quando revelada (batalha/fim)
+    // a AVALIAÇÃO (nota) só aparece quando revelada — apenas no FIM da partida
     var avBadge = (opts.mostrarAvaliacao && v.avaliacao != null)
       ? '<span class="sleeve__av" title="avaliação revelada">★ ' + esc(nota(v.avaliacao)) + '</span>' : '';
+    // as vitórias da batalha são independentes da nota (podem aparecer sem ela)
     var vit = '';
-    if (opts.mostrarAvaliacao && opts.vitorias != null) {
+    if (opts.vitorias != null) {
       vit = '<span class="sleeve__vit">' +
         (opts.vitorias > 0 ? ('🏅 ' + opts.vitorias + (opts.vitorias === 1 ? ' vitória' : ' vitórias')) : 'sem vitória') +
         '</span>';
@@ -199,7 +349,8 @@
     var eu = S && S.voce;
     if (!eu || !eu.loja || !eu.loja[idx]) return;
     var d = eu.loja[idx];
-    if (!confirm('Remover "' + d.album + '" da sua loja? Você abre essa vaga do acervo.')) return;
+    var msgC = 'Remover "' + d.album + '" da sua loja? Você abre essa vaga do acervo.';
+    if (!confirm(lang === 'en' ? traduzirTexto(msgC) : msgC)) return;
     socket.emit('removerDaLoja', { index: idx });
   });
 
@@ -589,7 +740,7 @@
     var cabeca = '<div class="revelacao__cabeca"><span class="selo">a hora da verdade</span><h2>' +
       (solo ? 'Hora de Vender' : 'Batalha de Vendas') + '</h2>' +
       '<div class="revelacao__demanda">Rodada ' + p.rodada + '/' + p.totalRodadas + ' · ' +
-      (solo ? 'seus discos vão pelo valor real e a avaliação (★) é revelada' : 'a avaliação (★) é revelada agora') + '</div></div>';
+      (solo ? 'seus discos são vendidos pelo valor real' : 'lucro/prejuízo agora — a nota (★) só no fim da partida') + '</div></div>';
     var meu = (p.jogadores || []).filter(function (b) { return b.playerId === pid; });
     var outros = (p.jogadores || []).filter(function (b) { return b.playerId !== pid; });
     var blocos = meu.concat(outros).map(function (b) { return blocoBatalha(b, b.playerId === pid); }).join('');
@@ -616,17 +767,16 @@
       var lucroTxt = v.lucro > 0 ? ('LUCRO +' + money(v.lucro)) : (v.lucro < 0 ? ('PREJUÍZO −' + money(-v.lucro)) : 'no zero a zero');
       return '<div class="venda' + (v.campeao ? ' venceu' : '') + '">' +
         '<div class="flip"><div class="flip__inner">' +
-          '<div class="flip__face">' + sleeveFront(v, { mostrarAvaliacao: true, vitorias: v.vitorias, precoVenda: v.preco, campeao: v.campeao }) + '</div>' +
+          '<div class="flip__face">' + sleeveFront(v, { vitorias: v.vitorias, precoVenda: v.preco, campeao: v.campeao }) + '</div>' +
           '<div class="flip__face flip__back">' + sleeveBack() + '</div>' +
         '</div></div>' +
-        '<div class="venda__pontos">★ ' + nota(v.avaliacao) + '</div>' +
         '<div class="venda__troca">comprou ' + money(v.pago) + ' → vendeu <b>' + money(v.preco) + '</b></div>' +
         '<div class="venda__lucro ' + lucroCls + '">' + lucroTxt + '</div>' +
       '</div>';
     }).join('') || '<p class="esperando">Nada foi ao balcão.</p>';
 
     var guardados = (b.guardados || []).map(function (v) {
-      return '<div class="guardado-mini">' + sleeveFront(v, { mostrarAvaliacao: true, semPreco: true }) + '</div>';
+      return '<div class="guardado-mini">' + sleeveFront(v, { semPreco: true }) + '</div>';
     }).join('');
 
     var lucroLiquido = b.lucro || 0;
@@ -641,7 +791,7 @@
         ' · <span class="venda__lucro ' + liqCls + '">resultado ' + liqTxt + '</span></div>' +
       '<div class="balcao">' + balcao + '</div>' +
       (guardados ? '<div class="batalha-guardados"><span class="secao-rotulo">Guardados na loja</span><div class="guardados-fila">' + guardados + '</div></div>' : '') +
-      '<div class="batalha-bloco__rodape">Acervo guardado: <b>' + nota(b.acervo) + '</b> ★</div>' +
+      '<div class="batalha-bloco__rodape">Loja: <b>' + (b.lojaTamanho || 0) + '/5</b> guardados · a nota é revelada só no fim da partida</div>' +
     '</div>';
   }
 
