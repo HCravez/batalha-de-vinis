@@ -824,7 +824,8 @@
     var controles = (S && S.souHost)
       ? '<div class="fim__controles"><button id="btn-denovo" class="btn btn--rosa btn--g">Tocar de novo</button><p class="dica">Volta todo mundo para o lobby.</p></div>'
       : '<div class="fim__controles"><p class="dica">O anfitrião pode começar uma nova partida.</p></div>';
-    secs.fim.innerHTML = cabeca + parada + reveal + controles;
+    secs.fim.innerHTML = cabeca + parada + reveal + '<div id="ad-fim"></div>' + controles;
+    if (window.montarAnuncio) window.montarAnuncio(document.getElementById('ad-fim'), 'fim');
     var btn = $('#btn-denovo');
     if (btn) btn.addEventListener('click', function () { btn.disabled = true; socket.emit('jogarNovamente'); });
     crachaModo = null; arranjoVenda = null; selecionadoMbid = null;
@@ -859,7 +860,8 @@
     var controles = '<div class="fim__controles"><a class="btn btn--rosa btn--g" href="/">Jogar de novo</a>' +
       '<p class="dica">Tente bater seu recorde.</p></div>';
 
-    secs.fim.innerHTML = cabeca + placar + reveal + controles;
+    secs.fim.innerHTML = cabeca + placar + reveal + '<div id="ad-fim"></div>' + controles;
+    if (window.montarAnuncio) window.montarAnuncio(document.getElementById('ad-fim'), 'fim');
     crachaModo = null; arranjoVenda = null; selecionadoMbid = null;
   }
 })();

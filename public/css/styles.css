@@ -952,6 +952,20 @@ h1, h2, h3 { font-family: var(--fonte-titulo); font-weight: 400; letter-spacing:
 
 .credito-rodada { color: var(--gold); font-family: var(--fonte-titulo); }
 
+/* Anúncios (leves e não-intrusivos: rodapé da vitrine + tela de fim) */
+.anuncio { display: block; max-width: 728px; margin: 18px auto; text-align: center; }
+.anuncio__rotulo {
+  display: block; font-size: .6rem; letter-spacing: 2px; text-transform: uppercase;
+  color: var(--smoke-d); margin-bottom: 4px;
+}
+.anuncio__placeholder {
+  min-height: 90px; display: grid; place-items: center;
+  border: 1.5px dashed var(--ink-3); border-radius: var(--r);
+  color: var(--smoke-d); font-size: .85rem; letter-spacing: 1px;
+  background: repeating-linear-gradient(45deg, transparent 0 10px, rgba(255,255,255,.02) 10px 20px);
+}
+.anuncio .adsbygoogle { display: block; min-height: 90px; }
+
 /* Disco já levado por outro lojista (bloqueado na compra) */
 .sleeve.is-levado { filter: grayscale(.7) brightness(.66); cursor: not-allowed; }
 .sleeve.is-levado:hover { transform: none; }
