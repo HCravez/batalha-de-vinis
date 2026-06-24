@@ -16,8 +16,9 @@
 (function () {
   window.BDV_ADS = window.BDV_ADS || {
     ativo: true,
-    cliente: '', // ex.: 'ca-pub-1234567890123456'
-    slots: { vitrine: '', fim: '' }, // IDs dos blocos de anúncio
+    cliente: 'ca-pub-5458101207661511', // seu ID de editor do AdSense
+    // Crie um bloco "Display" no painel do AdSense e cole o ID do bloco aqui:
+    slots: { vitrine: '' },
   };
   var cfg = window.BDV_ADS;
   var scriptCarregado = false;
@@ -28,6 +29,8 @@
 
   function carregarAdSense() {
     if (scriptCarregado || !cfg.cliente) return;
+    // Não duplica: o loader já costuma estar no <head> da vitrine.
+    if (document.querySelector('script[src*="adsbygoogle.js"]')) { scriptCarregado = true; return; }
     scriptCarregado = true;
     var s = document.createElement('script');
     s.async = true;

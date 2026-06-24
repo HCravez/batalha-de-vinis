@@ -1,6 +1,1 @@
-# ads.txt — autoriza quem pode vender o inventário de anúncios deste site.
-# Depois de aprovar o site no Google AdSense, descomente a linha abaixo e troque
-# pub-0000000000000000 pelo SEU ID de editor (aparece como "ca-pub-..." no painel,
-# aqui sem o "ca-"). Publique este arquivo na RAIZ do site (ele é servido em /ads.txt).
-#
-# google.com, pub-0000000000000000, DIRECT, f08c47fec0942fa0
+google.com, pub-5458101207661511, DIRECT, f08c47fec0942fa0
