@@ -4,10 +4,16 @@
 (function () {
   var socket = io();
 
-  // ── Idioma (PT/EN) ─────────────────────────────────────────────────────────
-  var lang = localStorage.getItem('bdv_lang') || 'pt';
+  // ── Idioma por domínio: vinylbattle.com = EN, batalhadevinis.com = PT ──────
+  var ehVinylBattle = /(^|\.)vinylbattle\.com$/i.test(location.hostname);
+  var lang = localStorage.getItem('bdv_lang') || (ehVinylBattle ? 'en' : 'pt');
+  document.documentElement.lang = lang === 'en' ? 'en' : 'pt-BR';
+  document.title = lang === 'en' ? 'Vinyl Battle' : 'Batalha de Vinis';
   // Tradução da vitrine por seletor (substitui o conteúdo do elemento).
   var EN = {
+    '.vitrine__topo > span': 'VINYL BATTLE<span class="ponto">.</span>',
+    '.vitrine__titulo': 'Vinyl<br /><em>Battle</em>',
+    '.disco__label-title': 'Vinyl<br />Battle',
     '.vitrine__topo small': 'the record-shop showdown',
     '.vitrine__eyebrow': 'drop the needle…',
     '.vitrine__lead':
@@ -19,6 +25,7 @@
     '#abrir': 'Open multiplayer shop',
     '.acoes-dica': 'In multiplayer, just share the shop link — joining is by URL.',
     '.vitrine__rodape summary': 'How do you play?',
+    '.rodape-legal a': 'Privacy Policy',
   };
   // Os parágrafos das regras (na ordem em que aparecem no <details>).
   var EN_REGRAS = [
@@ -42,6 +49,8 @@
       var elemento = document.querySelector(sel);
       if (elemento) elemento.innerHTML = EN[sel];
     });
+    var priv = document.querySelector('.rodape-legal a');
+    if (priv) priv.setAttribute('href', '/privacy.html'); // versão em inglês
     var ps = document.querySelectorAll('.vitrine__rodape details p');
     for (var i = 0; i < ps.length && i < EN_REGRAS.length; i++) ps[i].innerHTML = EN_REGRAS[i];
     var btn = document.getElementById('btn-lang');

@@ -277,6 +277,9 @@ h1, h2, h3 { font-family: var(--fonte-titulo); font-weight: 400; letter-spacing:
 @keyframes rolar { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 
 .vitrine__rodape { color: var(--smoke-d); font-size: .85rem; padding: 16px 0 22px; text-align: center; }
+.vitrine__rodape .rodape-legal { margin-top: 12px; font-size: .8rem; }
+.vitrine__rodape .rodape-legal a { color: var(--smoke); }
+.vitrine__rodape .rodape-legal a:hover { color: var(--gold); }
 .vitrine__rodape details { display: inline-block; text-align: left; max-width: 560px; }
 .vitrine__rodape summary { cursor: pointer; color: var(--smoke); font-weight: 600; }
 .vitrine__rodape p { line-height: 1.55; }

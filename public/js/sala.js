@@ -21,8 +21,12 @@
   }
   var nomeSalvo = localStorage.getItem('bdv_nome') || '';
 
-  // ── Idioma (PT/EN) ───────────────────────────────────────────────────────
-  var lang = localStorage.getItem('bdv_lang') || 'pt';
+  // ── Idioma por domínio: vinylbattle.com = EN, batalhadevinis.com = PT ─────
+  // (o botão de idioma sobrepõe, salvando por domínio no localStorage)
+  var ehVinylBattle = /(^|\.)vinylbattle\.com$/i.test(location.hostname);
+  var lang = localStorage.getItem('bdv_lang') || (ehVinylBattle ? 'en' : 'pt');
+  document.documentElement.lang = lang === 'en' ? 'en' : 'pt-BR';
+  document.title = lang === 'en' ? 'Vinyl Battle' : 'Batalha de Vinis';
   var EN = {
     // lobby
     'bem-vindo, lojista': 'welcome, shopkeeper', 'Quem tá na loja': "Who's in the shop",
@@ -36,6 +40,7 @@
     'Esperando ': 'Waiting for ', ' abrir as portas…': ' to open the doors…',
     'Faltam ': 'Still ', ' lojista(s) ficarem prontos.': ' shopkeeper(s) to get ready.',
     // header / geral
+    'BATALHA DE VINIS': 'VINYL BATTLE', 'BdV': 'VB',
     'Copiar link': 'Copy link', 'loja': 'shop', 'um instante…': 'a moment…',
     'Entrando na loja': 'Joining the shop',
     'Link da loja copiado!': 'Shop link copied!',
