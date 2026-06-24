@@ -17,8 +17,8 @@
   window.BDV_ADS = window.BDV_ADS || {
     ativo: true,
     cliente: 'ca-pub-5458101207661511', // seu ID de editor do AdSense
-    // Crie um bloco "Display" no painel do AdSense e cole o ID do bloco aqui:
-    slots: { vitrine: '' },
+    slots: { vitrine: '4617329018' }, // bloco "Display" da vitrine
+
   };
   var cfg = window.BDV_ADS;
   var scriptCarregado = false;
